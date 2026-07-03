@@ -83,7 +83,7 @@ async function seed() {
     {
       column: 1,
       title: 'Set up CI/CD pipeline',
-      description: 'GitHub Actions for test/lint/build — not yet started',
+      description: 'GitHub Actions CI: migrations, API smoke test, frontend build, MCP verify, Docker build',
       priority: 'high',
       assignee: 'Alex M.',
       due: '2026-07-10',
