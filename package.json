@@ -14,6 +14,7 @@
     "docker:logs": "docker compose logs -f",
     "mcp:install": "npm install --prefix mcp",
     "mcp:verify": "node mcp/scripts/verify-mcp.js",
+    "ci": "npm run migrate --prefix backend && node scripts/ci-smoke.js && npm run build --prefix frontend && npm run mcp:verify",
     "db:up": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres",
     "db:down": "docker compose down",
     "setup": "cp -n .env.example .env 2>/dev/null || true && npm run db:up && npm install --prefix backend && npm install --prefix frontend"

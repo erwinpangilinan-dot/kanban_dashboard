@@ -94,6 +94,23 @@ kanban_dashboard/
 
 ---
 
+## CI/CD
+
+GitHub Actions runs on every push and pull request to `main`:
+
+| Job | Checks |
+|-----|--------|
+| **test-and-build** | Postgres migrations, API smoke test, frontend typecheck/build, MCP verify |
+| **docker** | `docker compose build` for api + web images |
+
+Run the same checks locally (requires Postgres via `npm run db:up`):
+
+```bash
+npm run ci
+```
+
+---
+
 ## Roadmap (confirmed)
 
 | Sprint | Status | Scope |
