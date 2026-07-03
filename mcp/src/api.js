@@ -1,9 +1,13 @@
 const BASE = (process.env.MISSION_CONTROL_API_URL || 'http://localhost/api').replace(/\/$/, '');
 
 export async function api(path, options = {}) {
+  const headers = { 'Content-Type': 'application/json', ...options.headers };
+  const token = process.env.MISSION_CONTROL_API_TOKEN;
+  if (token) headers.Authorization = `Bearer ${token}`;
+
   const url = `${BASE}${path.startsWith('/') ? path : `/${path}`}`;
   const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers,
     ...options,
   });
 

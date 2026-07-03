@@ -48,6 +48,10 @@ jobs:
         run: npm ci
         working-directory: backend
 
+      - name: Verify auth JWT helpers
+        run: npm run verify:auth
+        working-directory: backend
+
       - name: Run database migrations
         run: npm run migrate
         working-directory: backend

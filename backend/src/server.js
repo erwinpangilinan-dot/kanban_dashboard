@@ -8,6 +8,8 @@ const db = require('./db');
 const { migrate } = require('./migrate');
 const { seed } = require('./seed');
 const routes = require('./routes');
+const authRoutes = require('./routes/auth');
+const { requireAuth } = require('./middleware/auth');
 const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -25,7 +27,8 @@ app.get('/api/health', async (_req, res) => {
   }
 });
 
-app.use('/api', routes);
+app.use('/api/auth', authRoutes);
+app.use('/api', requireAuth, routes);
 
 const frontendDist = path.join(__dirname, '../../frontend/dist');
 const hasFrontendBuild = fs.existsSync(path.join(frontendDist, 'index.html'));

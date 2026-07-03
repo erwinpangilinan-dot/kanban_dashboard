@@ -42,7 +42,7 @@ async function seed() {
     {
       column: 0,
       title: 'Implement auth middleware',
-      description: 'JWT/session auth for API routes — not yet started (Sprint 2 candidate)',
+      description: 'JWT auth middleware, login API, and UI sign-in (enable with JWT_SECRET)',
       priority: 'high',
       assignee: 'Alex M.',
       due: null,

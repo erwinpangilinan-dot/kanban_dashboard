@@ -94,6 +94,25 @@ kanban_dashboard/
 
 ---
 
+## Authentication
+
+Auth is **off by default** (no `JWT_SECRET`). CI and local dev work without credentials.
+
+To enable, set in `.env`:
+
+```bash
+JWT_SECRET=change-me-to-a-long-random-string
+AUTH_USERNAME=admin
+AUTH_PASSWORD=your-secure-password
+AUTH_API_TOKEN=token-for-mcp-and-scripts
+```
+
+- **Dashboard:** sign-in page appears when auth is enabled
+- **MCP / scripts:** send `Authorization: Bearer $AUTH_API_TOKEN`
+- **Public routes:** `/api/health`, `/api/auth/status`, `/api/auth/login`
+
+---
+
 ## CI/CD
 
 GitHub Actions runs on every push and pull request to `main`:
@@ -169,6 +188,9 @@ See `.env.example` for all options. Key variables:
 | Variable | Description |
 |----------|-------------|
 | `DATABASE_URL` | PostgreSQL connection string |
+| `JWT_SECRET` | Enable API auth when set (HS256 JWT) |
+| `AUTH_USERNAME` / `AUTH_PASSWORD` | Dashboard login credentials |
+| `AUTH_API_TOKEN` | Static bearer token for MCP and automation |
 | `SLACK_WEBHOOK_URL` | Slack incoming webhook (Sprint 2) |
 | `SMTP_*` / `EMAIL_*` | Daily digest email (Sprint 2) |
 | `GITHUB_TOKEN` | GitHub API token (Sprint 3) |

@@ -1,4 +1,4 @@
-import { RefreshCw } from 'lucide-react';
+import { LogOut, RefreshCw } from 'lucide-react';
 import type { AppView, Project } from '../types';
 
 interface HeaderProps {
@@ -7,9 +7,19 @@ interface HeaderProps {
   taskCount: number;
   onRefresh: () => void;
   loading?: boolean;
+  username?: string | null;
+  onLogout?: () => void;
 }
 
-export function Header({ view, project, taskCount, onRefresh, loading }: HeaderProps) {
+export function Header({
+  view,
+  project,
+  taskCount,
+  onRefresh,
+  loading,
+  username,
+  onLogout,
+}: HeaderProps) {
   const title = view === 'overview' ? 'Overview' : (project?.name ?? 'Board');
   const subtitle =
     view === 'overview'
@@ -30,6 +40,19 @@ export function Header({ view, project, taskCount, onRefresh, loading }: HeaderP
           <span className="text-sm text-gray-500">
             {taskCount} {taskCount === 1 ? 'task' : 'tasks'}
           </span>
+        )}
+        {username && (
+          <span className="text-sm text-gray-500">{username}</span>
+        )}
+        {onLogout && (
+          <button
+            type="button"
+            onClick={onLogout}
+            className="rounded-lg border border-surface-border p-2 text-gray-400 transition-colors hover:border-accent/40 hover:text-accent-hover"
+            aria-label="Sign out"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
         )}
         <button
           type="button"
