@@ -11,6 +11,7 @@ const routes = require('./routes');
 const authRoutes = require('./routes/auth');
 const { requireAuth } = require('./middleware/auth');
 const { errorHandler } = require('./middleware/errorHandler');
+const { startOverdueChecker } = require('./services/notify');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -72,6 +73,7 @@ async function start() {
     } else {
       console.log(`Run "npm run dev" for UI at http://localhost:5173`);
     }
+    startOverdueChecker();
   });
 }
 

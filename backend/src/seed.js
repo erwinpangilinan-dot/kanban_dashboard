@@ -49,8 +49,8 @@ async function seed() {
     },
     {
       column: 0,
-      title: 'Sprint 2: Slack notifications',
-      description: 'Notify on Done, overdue, and urgent tasks (Sprint 2)',
+      title: 'Sprint 2: Telegram notifications',
+      description: 'Telegram alerts on Done, overdue, and urgent tasks (TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID)',
       priority: 'high',
       assignee: null,
       due: '2026-07-20',
