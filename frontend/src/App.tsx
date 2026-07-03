@@ -7,6 +7,8 @@ import { OverviewPage } from './components/OverviewPage';
 import { ProjectModal } from './components/ProjectModal';
 import { Sidebar } from './components/Sidebar';
 import { TaskModal } from './components/TaskModal';
+import { useAutoRefresh } from './hooks/useAutoRefresh';
+import { getAutoRefreshEnabled, setAutoRefreshEnabled } from './lib/autoRefresh';
 import { clearToken, getToken } from './lib/auth';
 import type { AppView, BoardData, OverviewData, Project, Task } from './types';
 
@@ -25,6 +27,7 @@ export default function App() {
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(getAutoRefreshEnabled);
 
   useEffect(() => {
     setUnauthorizedHandler(() => {
@@ -89,18 +92,38 @@ export default function App() {
     }
   }, []);
 
-  const loadBoard = useCallback(async (projectId: string) => {
-    setLoading(true);
-    setError(null);
+  const loadBoard = useCallback(async (projectId: string, silent = false) => {
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const data = await api.getBoard(projectId);
       setBoardData(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load board');
+      if (!silent) {
+        setError(err instanceof Error ? err.message : 'Failed to load board');
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
+
+  const silentRefreshBoard = useCallback(() => {
+    if (activeProjectId) loadBoard(activeProjectId, true);
+  }, [activeProjectId, loadBoard]);
+
+  useAutoRefresh(
+    autoRefresh,
+    view === 'board' && !!activeProjectId && !selectedTask,
+    silentRefreshBoard
+  );
+
+  function handleAutoRefreshChange(enabled: boolean) {
+    setAutoRefreshEnabled(enabled);
+    setAutoRefresh(enabled);
+    if (enabled && activeProjectId) silentRefreshBoard();
+  }
 
   useEffect(() => {
     if (authState !== 'ready') return;
@@ -231,6 +254,8 @@ export default function App() {
           loading={loading}
           username={authEnabled ? username : null}
           onLogout={authEnabled ? handleLogout : undefined}
+          autoRefresh={autoRefresh}
+          onAutoRefreshChange={view === 'board' ? handleAutoRefreshChange : undefined}
         />
 
         <main className="flex-1 overflow-auto p-6">

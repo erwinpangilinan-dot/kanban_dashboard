@@ -1,4 +1,5 @@
 import { LogOut, RefreshCw } from 'lucide-react';
+import { AUTO_REFRESH_MS } from '../lib/autoRefresh';
 import type { AppView, Project } from '../types';
 
 interface HeaderProps {
@@ -9,6 +10,8 @@ interface HeaderProps {
   loading?: boolean;
   username?: string | null;
   onLogout?: () => void;
+  autoRefresh?: boolean;
+  onAutoRefreshChange?: (enabled: boolean) => void;
 }
 
 export function Header({
@@ -19,6 +22,8 @@ export function Header({
   loading,
   username,
   onLogout,
+  autoRefresh = false,
+  onAutoRefreshChange,
 }: HeaderProps) {
   const title = view === 'overview' ? 'Overview' : (project?.name ?? 'Board');
   const subtitle =
@@ -52,6 +57,25 @@ export function Header({
             aria-label="Sign out"
           >
             <LogOut className="h-4 w-4" />
+          </button>
+        )}
+        {onAutoRefreshChange && (
+          <button
+            type="button"
+            onClick={() => onAutoRefreshChange(!autoRefresh)}
+            aria-pressed={autoRefresh}
+            title={
+              autoRefresh
+                ? `Auto-refresh on (${AUTO_REFRESH_MS / 1000}s)`
+                : 'Enable auto-refresh'
+            }
+            className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+              autoRefresh
+                ? 'border-accent/50 bg-accent/10 text-accent-hover'
+                : 'border-surface-border text-gray-500 hover:border-accent/40 hover:text-gray-300'
+            }`}
+          >
+            Auto
           </button>
         )}
         <button
