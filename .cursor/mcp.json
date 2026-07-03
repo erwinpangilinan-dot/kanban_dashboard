@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "mission-control": {
+      "command": "bash",
+      "args": ["mcp/run.sh"],
+      "env": {
+        "MISSION_CONTROL_API_URL": "http://localhost/api"
+      }
+    }
+  }
+}

@@ -99,9 +99,49 @@ kanban_dashboard/
 | Sprint | Status | Scope |
 |--------|--------|-------|
 | **Sprint 1** | ✅ Done | Overview + metrics + Docker |
+| **Sprint 1b** | ✅ Done | MCP server + Cursor skill for agent coordination |
 | **Sprint 2** | Planned | Slack (Done/overdue/urgent), Email daily digest |
 | **Sprint 3** | Planned | GitHub link + auto-create issues |
 | **Sprint 4** | Planned | Labels, filters, export |
+
+---
+
+## MCP + Cursor Skill (Agent Coordination)
+
+Agents can read and update project status via the **Mission Control MCP server**.
+
+### Setup
+
+```bash
+# 1. Start the dashboard
+docker compose up -d
+
+# 2. Install MCP dependencies (once)
+npm install --prefix mcp
+
+# 3. Restart Cursor to load .cursor/mcp.json
+```
+
+MCP config: `.cursor/mcp.json`  
+Skill: `.cursor/skills/mission-control/SKILL.md`
+
+### MCP Tools
+
+| Tool | Purpose |
+|------|---------|
+| `health_check` | Verify API is up |
+| `get_status_report` | Markdown standup/coordination report |
+| `get_overview` | Full metrics JSON |
+| `list_projects` / `get_board` | Discover projects and tasks |
+| `create_task` / `move_task` / `complete_task` | Update work items |
+| `create_project` | Add new project |
+
+### Example agent workflow
+
+1. `health_check`
+2. `get_status_report` → share standup with team
+3. `create_task` → log new work in Backlog
+4. `complete_task` → mark finished when done
 
 ---
 
