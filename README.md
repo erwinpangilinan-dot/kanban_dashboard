@@ -94,6 +94,26 @@ kanban_dashboard/
 
 ---
 
+## Telegram notifications (Sprint 2)
+
+Set in `.env` to enable push alerts:
+
+```bash
+TELEGRAM_BOT_TOKEN=123456:ABC...   # from @BotFather
+TELEGRAM_CHAT_ID=123456789         # your chat or group id
+TELEGRAM_NOTIFY_ON=completed,overdue,urgent
+```
+
+| Event | When it fires |
+|-------|----------------|
+| **completed** | Task moved to Review or Done |
+| **urgent** | Task created or updated with urgent priority |
+| **overdue** | Daily scan finds past-due tasks not yet notified |
+
+Get your chat ID: message [@userinfobot](https://t.me/userinfobot) or add the bot to a group and use the Telegram API `getUpdates`.
+
+---
+
 ## Authentication
 
 Auth is **off by default** (no `JWT_SECRET`). CI and local dev work without credentials.
@@ -136,7 +156,7 @@ npm run ci
 |--------|--------|-------|
 | **Sprint 1** | ✅ Done | Overview + metrics + Docker |
 | **Sprint 1b** | ✅ Done | MCP server + Cursor skill for agent coordination |
-| **Sprint 2** | Planned | Slack (Done/overdue/urgent), Email daily digest |
+| **Sprint 2** | In progress | Telegram (Done/overdue/urgent), Email daily digest |
 | **Sprint 3** | Planned | GitHub link + auto-create issues |
 | **Sprint 4** | Planned | Labels, filters, export |
 
@@ -191,7 +211,7 @@ See `.env.example` for all options. Key variables:
 | `JWT_SECRET` | Enable API auth when set (HS256 JWT) |
 | `AUTH_USERNAME` / `AUTH_PASSWORD` | Dashboard login credentials |
 | `AUTH_API_TOKEN` | Static bearer token for MCP and automation |
-| `SLACK_WEBHOOK_URL` | Slack incoming webhook (Sprint 2) |
+| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | Telegram push notifications (Sprint 2) |
 | `SMTP_*` / `EMAIL_*` | Daily digest email (Sprint 2) |
 | `GITHUB_TOKEN` | GitHub API token (Sprint 3) |
 

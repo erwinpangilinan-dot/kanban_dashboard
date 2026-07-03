@@ -8,6 +8,7 @@ const {
   getProjectIdForColumn,
   getColumnName,
 } = require('../services/activity');
+const { fireAndForget, notifyCompleted, notifyUrgent } = require('../services/notify');
 
 const router = express.Router();
 
@@ -167,6 +168,9 @@ router.post('/columns/:columnId/tasks', asyncHandler(async (req, res) => {
       toColumn: columnName,
       metadata: { priority: task.priority },
     });
+    if (task.priority === 'urgent') {
+      fireAndForget(() => notifyUrgent(task.id));
+    }
   }
 
   res.status(201).json(task);
@@ -174,6 +178,12 @@ router.post('/columns/:columnId/tasks', asyncHandler(async (req, res) => {
 
 router.put('/tasks/:id', asyncHandler(async (req, res) => {
   const { title, description, priority, assignee, due_date } = req.body;
+  const { rows: before } = await db.query(
+    'SELECT priority FROM tasks WHERE id = $1',
+    [req.params.id]
+  );
+  if (!before.length) return res.status(404).json({ error: 'Task not found.' });
+
   const { rows } = await db.query(
     `UPDATE tasks
      SET title = COALESCE($1, title),
@@ -197,6 +207,9 @@ router.put('/tasks/:id', asyncHandler(async (req, res) => {
       action: 'updated',
       taskTitle: task.title,
     });
+    if (task.priority === 'urgent' && before[0].priority !== 'urgent') {
+      fireAndForget(() => notifyUrgent(task.id));
+    }
   }
 
   res.json(task);
@@ -297,6 +310,9 @@ router.patch('/tasks/:id/move', asyncHandler(async (req, res) => {
         fromColumn: fromName,
         toColumn: toName,
       });
+      if (!isCompletedColumn(fromName) && isCompletedColumn(toName)) {
+        fireAndForget(() => notifyCompleted(updatedTask.id, toName));
+      }
     }
 
     res.json(updatedTask);
