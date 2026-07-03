@@ -32,23 +32,30 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
     <div
       ref={setNodeRef}
       style={style}
-      className={`group rounded-lg border border-surface-border bg-surface-overlay p-3 shadow-card transition-all hover:border-accent/40 hover:shadow-elevated ${
+      {...attributes}
+      {...listeners}
+      className={`group cursor-grab rounded-lg border border-surface-border bg-surface-overlay p-3 shadow-card transition-all hover:border-accent/40 hover:shadow-elevated active:cursor-grabbing ${
         isDragging ? 'opacity-50 ring-2 ring-accent/50' : ''
       }`}
     >
       <div className="flex items-start gap-2">
-        <button
-          type="button"
-          className="mt-0.5 cursor-grab text-gray-600 opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing"
-          {...attributes}
-          {...listeners}
+        <span
+          aria-hidden
+          className="mt-0.5 text-gray-600 opacity-40 transition-opacity group-hover:opacity-100"
         >
           <GripVertical className="h-4 w-4" />
-        </button>
+        </span>
 
-        <button
-          type="button"
+        <div
+          role="button"
+          tabIndex={0}
           onClick={() => onClick(task)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onClick(task);
+            }
+          }}
           className="flex-1 text-left"
         >
           <p className="text-sm font-medium leading-snug text-gray-100">
@@ -83,7 +90,7 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
               <span className="text-[11px] text-gray-500">{task.assignee}</span>
             </div>
           )}
-        </button>
+        </div>
       </div>
     </div>
   );
