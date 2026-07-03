@@ -1,14 +1,21 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api } from './api/client';
+import { api, setUnauthorizedHandler } from './api/client';
 import { Header } from './components/Header';
 import { KanbanBoard } from './components/KanbanBoard';
+import { LoginPage } from './components/LoginPage';
 import { OverviewPage } from './components/OverviewPage';
 import { ProjectModal } from './components/ProjectModal';
 import { Sidebar } from './components/Sidebar';
 import { TaskModal } from './components/TaskModal';
+import { clearToken, getToken } from './lib/auth';
 import type { AppView, BoardData, OverviewData, Project, Task } from './types';
 
+type AuthState = 'loading' | 'login' | 'ready';
+
 export default function App() {
+  const [authState, setAuthState] = useState<AuthState>('loading');
+  const [authEnabled, setAuthEnabled] = useState(false);
+  const [username, setUsername] = useState<string | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [view, setView] = useState<AppView>('overview');
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
@@ -18,6 +25,50 @@ export default function App() {
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      clearToken();
+      setUsername(null);
+      setAuthState('login');
+    });
+  }, []);
+
+  useEffect(() => {
+    api
+      .getAuthStatus()
+      .then(async ({ enabled }) => {
+        setAuthEnabled(enabled);
+        if (!enabled) {
+          setAuthState('ready');
+          return;
+        }
+        if (!getToken()) {
+          setAuthState('login');
+          return;
+        }
+        try {
+          const me = await api.getMe();
+          setUsername(me.username);
+          setAuthState('ready');
+        } catch {
+          clearToken();
+          setAuthState('login');
+        }
+      })
+      .catch(() => setAuthState('ready'));
+  }, []);
+
+  function handleLogout() {
+    clearToken();
+    setUsername(null);
+    setAuthState('login');
+  }
+
+  function handleLoginSuccess(name: string) {
+    setUsername(name);
+    setAuthState('ready');
+  }
 
   const loadProjects = useCallback(async () => {
     const data = await api.getProjects();
@@ -52,19 +103,21 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (authState !== 'ready') return;
     loadProjects().catch((err) => {
       setError(err instanceof Error ? err.message : 'Failed to load projects');
       setLoading(false);
     });
-  }, [loadProjects]);
+  }, [loadProjects, authState]);
 
   useEffect(() => {
+    if (authState !== 'ready') return;
     if (view === 'overview') {
       loadOverview();
     } else if (activeProjectId) {
       loadBoard(activeProjectId);
     }
-  }, [view, activeProjectId, loadOverview, loadBoard]);
+  }, [view, activeProjectId, loadOverview, loadBoard, authState]);
 
   function handleSelectOverview() {
     setView('overview');
@@ -146,6 +199,18 @@ export default function App() {
   const showSpinner =
     loading && (view === 'overview' ? !overviewData : !boardData);
 
+  if (authState === 'loading') {
+    return (
+      <div className="flex h-screen items-center justify-center bg-surface">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (authState === 'login') {
+    return <LoginPage onSuccess={handleLoginSuccess} />;
+  }
+
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar
@@ -164,6 +229,8 @@ export default function App() {
           taskCount={taskCount}
           onRefresh={handleRefresh}
           loading={loading}
+          username={authEnabled ? username : null}
+          onLogout={authEnabled ? handleLogout : undefined}
         />
 
         <main className="flex-1 overflow-auto p-6">
