@@ -18,6 +18,10 @@ export function KanbanColumn({ column, onTaskClick, onAddTask }: KanbanColumnPro
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // ponytail: stop dnd-kit from swallowing clicks on column controls
+  const stopDrag = (e: React.PointerEvent) => e.stopPropagation();
 
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
@@ -30,10 +34,13 @@ export function KanbanColumn({ column, onTaskClick, onAddTask }: KanbanColumnPro
     e.preventDefault();
     if (!title.trim() || submitting) return;
     setSubmitting(true);
+    setError(null);
     try {
       await onAddTask(column.id, title.trim());
       setTitle('');
       setAdding(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create task');
     } finally {
       setSubmitting(false);
     }
@@ -50,7 +57,8 @@ export function KanbanColumn({ column, onTaskClick, onAddTask }: KanbanColumnPro
         </div>
         <button
           type="button"
-          onClick={() => setAdding(true)}
+          onClick={() => { setAdding(true); setError(null); }}
+          onPointerDown={stopDrag}
           className="rounded p-1 text-gray-500 transition-colors hover:bg-surface-overlay hover:text-gray-300"
           aria-label={`Add task to ${column.name}`}
         >
@@ -73,32 +81,36 @@ export function KanbanColumn({ column, onTaskClick, onAddTask }: KanbanColumnPro
         </SortableContext>
 
         {adding && (
-          <form onSubmit={handleSubmit} className="mt-1">
-            <textarea
+          <form onSubmit={handleSubmit} className="mt-1" onPointerDown={stopDrag}>
+            <input
               autoFocus
+              type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') {
                   setAdding(false);
                   setTitle('');
+                  setError(null);
                 }
               }}
               placeholder="Task title..."
-              rows={2}
-              className="w-full resize-none rounded-lg border border-surface-border bg-surface-overlay px-3 py-2 text-sm text-gray-100 placeholder-gray-600 outline-none focus:border-accent"
+              className="w-full rounded-lg border border-surface-border bg-surface-overlay px-3 py-2 text-sm text-gray-100 placeholder-gray-600 outline-none focus:border-accent"
             />
+            {error && <p className="mt-1.5 text-xs text-red-400">{error}</p>}
             <div className="mt-2 flex gap-2">
               <button
                 type="submit"
                 disabled={!title.trim() || submitting}
+                onPointerDown={stopDrag}
                 className="rounded-md bg-accent px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
               >
-                Add
+                {submitting ? 'Adding…' : 'Add'}
               </button>
               <button
                 type="button"
-                onClick={() => { setAdding(false); setTitle(''); }}
+                onClick={() => { setAdding(false); setTitle(''); setError(null); }}
+                onPointerDown={stopDrag}
                 className="rounded-md px-3 py-1 text-xs text-gray-500 hover:text-gray-300"
               >
                 Cancel
