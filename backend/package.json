@@ -1,0 +1,18 @@
+{
+  "name": "mission-control-backend",
+  "version": "1.0.0",
+  "description": "Mission Control Kanban API",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "migrate": "node -e \"require('dotenv').config({path:'../.env'}); require('./src/migrate').migrate().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); })\"",
+    "seed": "node -e \"require('dotenv').config({path:'../.env'}); require('./src/seed').seed().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); })\""
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^16.4.7",
+    "express": "^5.2.1",
+    "pg": "^8.13.1"
+  }
+}

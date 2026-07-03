@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mission_control_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: kanban
+      POSTGRES_PASSWORD: kanban
+      POSTGRES_DB: mission_control
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kanban -d mission_control"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: mission_control_api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://kanban:kanban@postgres:5432/mission_control
+      PORT: 3001
+      NODE_ENV: production
+      MIGRATIONS_DIR: /app/database/migrations
+    depends_on:
+      postgres:
+        condition: service_healthy
+    expose:
+      - "3001"
+
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: mission_control_web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:

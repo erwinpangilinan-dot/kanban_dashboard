@@ -1,0 +1,5 @@
+# Postgres only — for local development with npm run dev
+services:
+  postgres:
+    ports:
+      - "5432:5432"

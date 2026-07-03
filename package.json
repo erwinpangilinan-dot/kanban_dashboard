@@ -1,0 +1,22 @@
+{
+  "name": "mission-control",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mission Control Kanban Dashboard",
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "dev:api": "npm run dev --prefix backend",
+    "dev:web": "npm run dev --prefix frontend",
+    "build": "npm run build --prefix frontend",
+    "start": "NODE_ENV=production npm run start --prefix backend",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "db:up": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres",
+    "db:down": "docker compose down",
+    "setup": "cp -n .env.example .env 2>/dev/null || true && npm run db:up && npm install --prefix backend && npm install --prefix frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
