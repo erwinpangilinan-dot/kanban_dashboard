@@ -1,0 +1,7 @@
+all:
+  children:
+    mission_control:
+      hosts:
+        production:
+          ansible_connection: local
+          ansible_user: deploy

@@ -92,6 +92,14 @@
     group: "{{ ansible_user }}"
     mode: "0644"
 
+- name: Stop existing stack before rebuild
+  ansible.builtin.command:
+    cmd: docker compose -f docker-compose.yml -f docker-compose.prod.yml down --remove-orphans
+    chdir: "{{ mc_install_dir }}"
+  register: mc_compose_down
+  changed_when: mc_compose_down.rc == 0
+  failed_when: false
+
 - name: Build and start Mission Control stack
   ansible.builtin.command:
     cmd: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --remove-orphans

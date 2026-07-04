@@ -22,32 +22,21 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.event == 'push')
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, mission-control]
     environment: production
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Ansible
-        run: pip install ansible
-
-      - name: Configure SSH
-        run: |
-          install -m 700 -d ~/.ssh
-          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+        run: pip3 install --user ansible
 
       - name: Deploy with Ansible
-        env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          ANSIBLE_HOST_KEY_CHECKING: "true"
         run: |
-          REF="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.event.workflow_run.head_sha }}"
+          REF="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.event.workflow_run.head_sha || github.sha }}"
           cd ansible
-          ansible-playbook \
-            -i inventory/production.yml \
+          ~/.local/bin/ansible-playbook \
+            -i inventory/local.yml \
             playbooks/deploy.yml \
             -e "mc_deploy_ref=${REF}" \
             -e "mc_postgres_password=${{ secrets.MC_POSTGRES_PASSWORD }}" \
