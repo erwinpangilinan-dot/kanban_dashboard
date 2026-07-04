@@ -1,0 +1,19 @@
+# Copy to vault.yml, fill in values, then encrypt:
+#   cp vault.yml.example vault.yml
+#   ansible-vault encrypt vault.yml
+#
+# Or pass at deploy time: ansible-playbook ... -e @secrets.yml
+
+mc_postgres_password: "change-me-long-random"
+mc_jwt_secret: "change-me-long-random"
+mc_auth_password: "change-me-long-random"
+mc_auth_api_token: "change-me-long-random"
+
+# Optional
+mc_telegram_bot_token: ""
+mc_telegram_chat_id: ""
+mc_email_from: ""
+mc_email_to: ""
+mc_google_client_id: ""
+mc_google_client_secret: ""
+mc_google_refresh_token: ""

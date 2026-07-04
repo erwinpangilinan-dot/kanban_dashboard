@@ -1,0 +1,8 @@
+all:
+  children:
+    mission_control:
+      hosts:
+        production:
+          # Set your server IP or hostname here, or pass -e ansible_host=...
+          ansible_host: "{{ lookup('env', 'DEPLOY_HOST') | default('CHANGE_ME', true) }}"
+          ansible_user: "{{ lookup('env', 'DEPLOY_USER') | default('deploy', true) }}"

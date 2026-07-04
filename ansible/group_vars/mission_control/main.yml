@@ -1,0 +1,19 @@
+# ── Deploy settings ──
+mc_repo_url: https://github.com/erwinpangilinan-dot/kanban_dashboard.git
+mc_deploy_ref: main
+mc_install_dir: /opt/mission-control
+mc_app_port: 80
+
+# ── Database (docker internal network) ──
+mc_postgres_user: kanban
+mc_postgres_db: mission_control
+# Override in vault: mc_postgres_password
+
+# ── Auth (recommended in production) ──
+mc_auth_username: admin
+# Override in vault: mc_jwt_secret, mc_auth_password, mc_auth_api_token
+
+# ── Optional integrations (leave empty to disable) ──
+mc_telegram_notify_on: completed,overdue,urgent
+mc_telegram_overdue_check_hours: 24
+mc_email_digest_cron: "0 8 * * 1-5"

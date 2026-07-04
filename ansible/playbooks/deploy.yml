@@ -1,0 +1,17 @@
+---
+- name: Deploy Mission Control Dashboard
+  hosts: mission_control
+  gather_facts: true
+
+  pre_tasks:
+    - name: Require production secrets
+      ansible.builtin.assert:
+        that:
+          - mc_postgres_password | length > 0
+          - mc_postgres_password != 'change-me-long-random'
+        fail_msg: >-
+          Set mc_postgres_password via vault.yml or -e.
+          See ansible/group_vars/mission_control/vault.yml.example
+
+  roles:
+    - role: mission_control

@@ -1,0 +1,33 @@
+mc_repo_url: https://github.com/erwinpangilinan-dot/kanban_dashboard.git
+mc_deploy_ref: main
+mc_install_dir: /opt/mission-control
+mc_app_port: 80
+
+mc_postgres_user: kanban
+mc_postgres_password: kanban
+mc_postgres_db: mission_control
+
+mc_jwt_secret: ""
+mc_auth_username: admin
+mc_auth_password: ""
+mc_auth_api_token: ""
+
+mc_telegram_bot_token: ""
+mc_telegram_chat_id: ""
+mc_telegram_notify_on: completed,overdue,urgent
+mc_telegram_overdue_check_hours: 24
+
+mc_email_from: ""
+mc_email_to: ""
+mc_email_digest_cron: "0 8 * * 1-5"
+mc_smtp_host: ""
+mc_smtp_port: "587"
+mc_smtp_user: ""
+mc_smtp_pass: ""
+
+mc_google_client_id: ""
+mc_google_client_secret: ""
+mc_google_refresh_token: ""
+mc_google_send_as: ""
+
+mc_git_version: "{{ mc_deploy_ref }}"

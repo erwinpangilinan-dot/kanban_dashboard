@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .env
+ansible/group_vars/mission_control/vault.yml
 *.log
 .DS_Store
 .claude/
