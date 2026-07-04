@@ -227,15 +227,31 @@ GitHub Actions CD: create a **production** environment and add secrets:
 
 | Secret | Required |
 |--------|----------|
-| `DEPLOY_HOST` | Server IP or hostname |
-| `DEPLOY_USER` | SSH user (e.g. `deploy`) |
-| `DEPLOY_SSH_KEY` | Private key for SSH |
+| `DEPLOY_HOST` | Server IP (manual Ansible only) |
+| `DEPLOY_USER` | SSH user (manual Ansible only) |
+| `DEPLOY_SSH_KEY` | SSH key (manual Ansible only) |
 | `MC_POSTGRES_PASSWORD` | Database password |
 | `MC_JWT_SECRET` | Auth signing key |
 | `MC_AUTH_PASSWORD` | Dashboard login password |
 | `MC_AUTH_API_TOKEN` | MCP / API bearer token |
 
 Optional: `MC_TELEGRAM_*`, `MC_EMAIL_*`, `MC_GOOGLE_*` for notifications and digest.
+
+### Self-hosted runner (LAN servers)
+
+GitHub cloud runners cannot reach private IPs like `10.10.x.x`. Install a runner **on the production server**:
+
+```bash
+# On your laptop — get a one-hour registration token
+gh api repos/OWNER/REPO/actions/runners/registration-token --method POST -q .token
+
+# On the server as deploy
+RUNNER_TOKEN=<paste-token> ./scripts/setup-github-runner.sh
+```
+
+The Deploy workflow uses `runs-on: [self-hosted, mission-control]` and Ansible `inventory/local.yml` (no SSH hop).
+
+Verify in GitHub: **Settings → Actions → Runners** — should show `mission-control` online.
 
 ---
 
