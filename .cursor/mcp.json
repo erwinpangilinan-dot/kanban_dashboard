@@ -6,6 +6,10 @@
       "env": {
         "MISSION_CONTROL_API_URL": "http://localhost/api"
       }
+    },
+    "google-workspace": {
+      "command": "bash",
+      "args": ["mcp/run-google-workspace.sh"]
     }
   }
 }

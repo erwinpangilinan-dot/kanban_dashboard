@@ -114,6 +114,56 @@ Get your chat ID: message [@userinfobot](https://t.me/userinfobot) or add the bo
 
 ---
 
+## Email daily digest (Sprint 2)
+
+The API sends a scheduled board summary (same content as the MCP status report). **Gmail API is preferred** when OAuth tokens are set; otherwise SMTP is used.
+
+### Gmail API (recommended)
+
+After authenticating with Google Workspace MCP, sync tokens into `.env`:
+
+```bash
+npm run sync:google-token --prefix backend
+```
+
+Then set recipients:
+
+```bash
+EMAIL_FROM=you@gmail.com          # sender (defaults from synced account)
+EMAIL_TO=team@example.com         # comma-separated recipients
+EMAIL_DIGEST_CRON=0 8 * * 1-5    # weekdays at 08:00 server local time
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+GOOGLE_REFRESH_TOKEN=...          # filled by sync:google-token
+```
+
+Send a test digest immediately:
+
+```bash
+npm run send:digest --prefix backend
+```
+
+### SMTP fallback
+
+```bash
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=your-user
+SMTP_PASS=your-password
+EMAIL_FROM=mission-control@example.com
+EMAIL_TO=team@example.com
+EMAIL_DIGEST_CRON=0 8 * * 1-5
+```
+
+| Setting | Default | Meaning |
+|---------|---------|---------|
+| `EMAIL_DIGEST_CRON` | `0 8 * * 1-5` | Weekdays at 08:00 (server local time) |
+| `EMAIL_TO` | — | Comma-separated recipients |
+
+The digest includes global metrics, per-project progress, upcoming deadlines, and recent activity. The API checks the cron schedule every minute when `EMAIL_TO` is set and either Gmail or SMTP is configured.
+
+---
+
 ## Authentication
 
 Auth is **off by default** (no `JWT_SECRET`). CI and local dev work without credentials.
@@ -156,7 +206,7 @@ npm run ci
 |--------|--------|-------|
 | **Sprint 1** | ✅ Done | Overview + metrics + Docker |
 | **Sprint 1b** | ✅ Done | MCP server + Cursor skill for agent coordination |
-| **Sprint 2** | In progress | Telegram (Done/overdue/urgent), Email daily digest |
+| **Sprint 2** | ✅ Done | Telegram (Done/overdue/urgent), Email daily digest (Gmail API + SMTP) |
 | **Sprint 3** | Planned | GitHub link + auto-create issues |
 | **Sprint 4** | Planned | Labels, filters, export |
 
@@ -212,7 +262,7 @@ See `.env.example` for all options. Key variables:
 | `AUTH_USERNAME` / `AUTH_PASSWORD` | Dashboard login credentials |
 | `AUTH_API_TOKEN` | Static bearer token for MCP and automation |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | Telegram push notifications (Sprint 2) |
-| `SMTP_*` / `EMAIL_*` | Daily digest email (Sprint 2) |
+| `GOOGLE_*` / `EMAIL_*` | Gmail API or SMTP daily digest (Sprint 2) |
 | `GITHUB_TOKEN` | GitHub API token (Sprint 3) |
 
 ---
