@@ -191,12 +191,51 @@ GitHub Actions runs on every push and pull request to `main`:
 |-----|--------|
 | **test-and-build** | Postgres migrations, API smoke test, frontend typecheck/build, MCP verify |
 | **docker** | `docker compose build` for api + web images |
+| **deploy** | After CI passes on `main`, deploys to production via Ansible (manual dispatch also available) |
 
 Run the same checks locally (requires Postgres via `npm run db:up`):
 
 ```bash
 npm run ci
 ```
+
+### Production deploy (Ansible)
+
+Server requirements: Ubuntu 22.04/24.04, SSH access, sudo.
+
+```bash
+# 1. Copy and fill secrets
+cp ansible/group_vars/mission_control/vault.yml.example \
+   ansible/group_vars/mission_control/vault.yml
+ansible-vault encrypt ansible/group_vars/mission_control/vault.yml
+
+# 2. Set server in inventory (or export DEPLOY_HOST / DEPLOY_USER)
+#    Edit ansible/inventory/production.yml
+
+# 3. Deploy
+cd ansible
+ansible-playbook playbooks/deploy.yml --ask-vault-pass
+```
+
+Deploy a specific git ref (for CD):
+
+```bash
+ansible-playbook playbooks/deploy.yml -e mc_deploy_ref=<sha-or-tag> --ask-vault-pass
+```
+
+GitHub Actions CD: create a **production** environment and add secrets:
+
+| Secret | Required |
+|--------|----------|
+| `DEPLOY_HOST` | Server IP or hostname |
+| `DEPLOY_USER` | SSH user (e.g. `deploy`) |
+| `DEPLOY_SSH_KEY` | Private key for SSH |
+| `MC_POSTGRES_PASSWORD` | Database password |
+| `MC_JWT_SECRET` | Auth signing key |
+| `MC_AUTH_PASSWORD` | Dashboard login password |
+| `MC_AUTH_API_TOKEN` | MCP / API bearer token |
+
+Optional: `MC_TELEGRAM_*`, `MC_EMAIL_*`, `MC_GOOGLE_*` for notifications and digest.
 
 ---
 

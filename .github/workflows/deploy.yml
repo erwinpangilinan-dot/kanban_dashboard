@@ -1,0 +1,63 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref to deploy (branch, tag, or SHA)
+        required: false
+        default: main
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Ansible
+        run: pip install ansible
+
+      - name: Configure SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Deploy with Ansible
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          ANSIBLE_HOST_KEY_CHECKING: "true"
+        run: |
+          REF="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.event.workflow_run.head_sha }}"
+          cd ansible
+          ansible-playbook \
+            -i inventory/production.yml \
+            playbooks/deploy.yml \
+            -e "mc_deploy_ref=${REF}" \
+            -e "mc_postgres_password=${{ secrets.MC_POSTGRES_PASSWORD }}" \
+            -e "mc_jwt_secret=${{ secrets.MC_JWT_SECRET }}" \
+            -e "mc_auth_password=${{ secrets.MC_AUTH_PASSWORD }}" \
+            -e "mc_auth_api_token=${{ secrets.MC_AUTH_API_TOKEN }}" \
+            -e "mc_telegram_bot_token=${{ secrets.MC_TELEGRAM_BOT_TOKEN }}" \
+            -e "mc_telegram_chat_id=${{ secrets.MC_TELEGRAM_CHAT_ID }}" \
+            -e "mc_email_from=${{ secrets.MC_EMAIL_FROM }}" \
+            -e "mc_email_to=${{ secrets.MC_EMAIL_TO }}" \
+            -e "mc_google_client_id=${{ secrets.MC_GOOGLE_CLIENT_ID }}" \
+            -e "mc_google_client_secret=${{ secrets.MC_GOOGLE_CLIENT_SECRET }}" \
+            -e "mc_google_refresh_token=${{ secrets.MC_GOOGLE_REFRESH_TOKEN }}"

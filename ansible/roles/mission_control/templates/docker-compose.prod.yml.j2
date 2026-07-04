@@ -1,0 +1,15 @@
+# Production overrides — managed by Ansible
+services:
+  postgres:
+    environment:
+      POSTGRES_USER: {{ mc_postgres_user }}
+      POSTGRES_PASSWORD: {{ mc_postgres_password }}
+      POSTGRES_DB: {{ mc_postgres_db }}
+
+  api:
+    environment:
+      DATABASE_URL: postgresql://{{ mc_postgres_user }}:{{ mc_postgres_password }}@postgres:5432/{{ mc_postgres_db }}
+
+  web:
+    ports:
+      - "{{ mc_app_port }}:80"
