@@ -118,17 +118,20 @@
   until: mc_health.status == 200
 
 - name: Check GitHub integration status
-  ansible.builtin.uri:
-    url: "http://127.0.0.1:{{ mc_app_port }}/api/github/status"
-    status_code: 200
-    return_content: true
+  ansible.builtin.command:
+    cmd: >-
+      docker exec mission_control_api node -e
+      "const ok=!!process.env.GITHUB_TOKEN&&!!process.env.GITHUB_DEFAULT_REPO;
+      console.log(JSON.stringify({enabled:ok,default_repo:process.env.GITHUB_DEFAULT_REPO||''}));
+      process.exit(ok?0:1)"
   register: mc_github_status
+  changed_when: false
   when: mc_github_default_repo | length > 0
 
 - name: Verify GitHub token loaded in API container
   ansible.builtin.assert:
     that:
-      - mc_github_status.json.enabled | bool
+      - mc_github_status.rc == 0
     fail_msg: >-
       GITHUB_TOKEN missing in the running API container.
       Ensure MC_GITHUB_TOKEN is set in production secrets and redeploy.
