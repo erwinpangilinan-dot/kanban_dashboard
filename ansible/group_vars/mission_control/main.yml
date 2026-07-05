@@ -13,6 +13,10 @@ mc_postgres_db: mission_control
 mc_auth_username: admin
 # Override in vault: mc_jwt_secret, mc_auth_password, mc_auth_api_token
 
+# ── GitHub (Sprint 3) — token/webhook secret via vault or GitHub Actions secrets ──
+mc_github_default_repo: erwinpangilinan-dot/kanban_dashboard
+mc_github_auto_create: "true"
+
 # ── Optional integrations (leave empty to disable) ──
 mc_telegram_notify_on: completed,overdue,urgent
 mc_telegram_overdue_check_hours: 24

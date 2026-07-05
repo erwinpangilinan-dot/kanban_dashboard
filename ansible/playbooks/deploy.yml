@@ -13,5 +13,15 @@
           Set mc_postgres_password via vault.yml or -e.
           See ansible/group_vars/mission_control/vault.yml.example
 
+    - name: Require GitHub token when default repo is configured
+      ansible.builtin.assert:
+        that:
+          - mc_github_token | length > 0
+        fail_msg: >-
+          mc_github_default_repo is set but mc_github_token is empty.
+          Add MC_GITHUB_TOKEN (and MC_GITHUB_WEBHOOK_SECRET) to the GitHub
+          production environment secrets, or set mc_github_token in vault.yml.
+      when: mc_github_default_repo | length > 0
+
   roles:
     - role: mission_control

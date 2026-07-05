@@ -283,6 +283,8 @@ GitHub Actions CD: create a **production** environment and add secrets:
 | `MC_JWT_SECRET` | Auth signing key |
 | `MC_AUTH_PASSWORD` | Dashboard login password |
 | `MC_AUTH_API_TOKEN` | MCP / API bearer token |
+| `MC_GITHUB_TOKEN` | GitHub PAT for issue sync (required when `mc_github_default_repo` is set) |
+| `MC_GITHUB_WEBHOOK_SECRET` | GitHub webhook HMAC secret |
 
 Optional: `MC_TELEGRAM_*`, `MC_EMAIL_*`, `MC_GOOGLE_*` for notifications and digest.
 
