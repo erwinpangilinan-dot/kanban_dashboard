@@ -1,5 +1,13 @@
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
+export interface Label {
+  id: string;
+  project_id: string;
+  name: string;
+  color: string;
+  created_at?: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -31,6 +39,7 @@ export interface Task {
   github_repo?: string | null;
   github_issue_number?: number | null;
   github_issue_url?: string | null;
+  labels?: Label[];
 }
 
 export interface GitHubStatus {
@@ -51,6 +60,7 @@ export interface Column {
 export interface BoardData {
   project: Project;
   board: Board;
+  labels?: Label[];
   columns: Column[];
 }
 
@@ -69,6 +79,7 @@ export interface UpdateTaskInput {
   assignee?: string | null;
   due_date?: string | null;
   github_issue_url?: string | null;
+  label_ids?: string[];
 }
 
 export interface OverviewMetrics {

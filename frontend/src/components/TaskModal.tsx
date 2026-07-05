@@ -1,20 +1,33 @@
 import { ExternalLink, Github, Trash2, Unlink, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
-import type { Task, TaskPriority } from '../types';
+import type { Label, Task, TaskPriority, UpdateTaskInput } from '../types';
 import { PRIORITY_CONFIG } from '../lib/utils';
 
 interface TaskModalProps {
   task: Task;
+  projectId: string;
+  projectLabels: Label[];
   onClose: () => void;
-  onSave: (taskId: string, data: Partial<Task>) => Promise<void>;
+  onSave: (taskId: string, data: UpdateTaskInput) => Promise<void>;
   onDelete: (taskId: string) => Promise<void>;
   onTaskUpdated?: (task: Task) => void;
+  onLabelCreated?: (label: Label) => void;
 }
 
 const PRIORITIES: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];
+const LABEL_COLORS = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#a855f7'];
 
-export function TaskModal({ task, onClose, onSave, onDelete, onTaskUpdated }: TaskModalProps) {
+export function TaskModal({
+  task,
+  projectId,
+  projectLabels,
+  onClose,
+  onSave,
+  onDelete,
+  onTaskUpdated,
+  onLabelCreated,
+}: TaskModalProps) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? '');
   const [priority, setPriority] = useState<TaskPriority>(task.priority);
@@ -23,6 +36,12 @@ export function TaskModal({ task, onClose, onSave, onDelete, onTaskUpdated }: Ta
   const [githubUrl, setGithubUrl] = useState(task.github_issue_url ?? '');
   const [githubEnabled, setGithubEnabled] = useState(false);
   const [creatingIssue, setCreatingIssue] = useState(false);
+  const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>(
+    () => task.labels?.map((l) => l.id) ?? []
+  );
+  const [newLabelName, setNewLabelName] = useState('');
+  const [newLabelColor, setNewLabelColor] = useState(LABEL_COLORS[0]);
+  const [creatingLabel, setCreatingLabel] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -49,6 +68,7 @@ export function TaskModal({ task, onClose, onSave, onDelete, onTaskUpdated }: Ta
         assignee: assignee.trim() || null,
         due_date: dueDate || null,
         github_issue_url: githubUrl.trim() || null,
+        label_ids: selectedLabelIds,
       });
       onClose();
     } finally {
@@ -69,6 +89,28 @@ export function TaskModal({ task, onClose, onSave, onDelete, onTaskUpdated }: Ta
 
   function handleUnlink() {
     setGithubUrl('');
+  }
+
+  function toggleLabel(labelId: string) {
+    setSelectedLabelIds((prev) =>
+      prev.includes(labelId) ? prev.filter((id) => id !== labelId) : [...prev, labelId]
+    );
+  }
+
+  async function handleCreateLabel() {
+    if (!newLabelName.trim()) return;
+    setCreatingLabel(true);
+    try {
+      const label = await api.createLabel(projectId, {
+        name: newLabelName.trim(),
+        color: newLabelColor,
+      });
+      onLabelCreated?.(label);
+      setSelectedLabelIds((prev) => [...prev, label.id]);
+      setNewLabelName('');
+    } finally {
+      setCreatingLabel(false);
+    }
   }
 
   async function handleDelete() {
@@ -157,6 +199,60 @@ export function TaskModal({ task, onClose, onSave, onDelete, onTaskUpdated }: Ta
               placeholder="Name"
               className="w-full rounded-lg border border-surface-border bg-surface-overlay px-3 py-2 text-sm text-gray-100 outline-none focus:border-accent"
             />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-gray-500">Labels</label>
+            {projectLabels.length > 0 ? (
+              <div className="mb-2 flex flex-wrap gap-1.5">
+                {projectLabels.map((label) => {
+                  const active = selectedLabelIds.includes(label.id);
+                  return (
+                    <button
+                      key={label.id}
+                      type="button"
+                      onClick={() => toggleLabel(label.id)}
+                      className={`rounded px-2 py-0.5 text-xs font-medium transition-opacity ${
+                        active ? 'text-white ring-2 ring-white/30' : 'text-white/60 opacity-50 hover:opacity-80'
+                      }`}
+                      style={{ backgroundColor: label.color }}
+                    >
+                      {label.name}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="mb-2 text-xs text-gray-500">No labels yet — create one below.</p>
+            )}
+            <div className="flex gap-2">
+              <input
+                value={newLabelName}
+                onChange={(e) => setNewLabelName(e.target.value)}
+                placeholder="New label"
+                className="min-w-0 flex-1 rounded-lg border border-surface-border bg-surface-overlay px-3 py-2 text-sm text-gray-100 outline-none focus:border-accent"
+              />
+              <select
+                value={newLabelColor}
+                onChange={(e) => setNewLabelColor(e.target.value)}
+                className="rounded-lg border border-surface-border bg-surface-overlay px-2 py-2 text-sm text-gray-100 outline-none focus:border-accent"
+                aria-label="Label color"
+              >
+                {LABEL_COLORS.map((color) => (
+                  <option key={color} value={color}>
+                    {color}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={handleCreateLabel}
+                disabled={!newLabelName.trim() || creatingLabel}
+                className="rounded-lg border border-surface-border px-3 py-2 text-sm text-gray-300 hover:border-accent/40 disabled:opacity-50"
+              >
+                Add
+              </button>
+            </div>
           </div>
 
           {githubEnabled && (

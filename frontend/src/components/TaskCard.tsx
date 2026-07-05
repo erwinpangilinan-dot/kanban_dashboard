@@ -97,6 +97,20 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
             )}
           </div>
 
+          {(task.labels?.length ?? 0) > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {task.labels!.map((label) => (
+                <span
+                  key={label.id}
+                  className="rounded px-1.5 py-0.5 text-[10px] font-medium text-white"
+                  style={{ backgroundColor: label.color }}
+                >
+                  {label.name}
+                </span>
+              ))}
+            </div>
+          )}
+
           {task.assignee && (
             <div className="mt-2.5 flex items-center gap-1.5">
               <div className="flex h-5 w-5 items-center justify-center rounded-full bg-accent-muted text-[9px] font-bold text-accent-hover">

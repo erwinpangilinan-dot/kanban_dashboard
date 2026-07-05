@@ -88,10 +88,14 @@ kanban_dashboard/
 | POST | `/api/projects` | Create project |
 | GET | `/api/projects/:id/board` | Kanban board payload |
 | POST | `/api/columns/:id/tasks` | Create task |
-| PUT | `/api/tasks/:id` | Update task (supports `github_issue_url`) |
+| PUT | `/api/tasks/:id` | Update task (`github_issue_url`, `label_ids`) |
 | POST | `/api/tasks/:id/github-issue` | Create GitHub issue for task |
 | PATCH | `/api/tasks/:id/move` | Move/reorder task |
 | DELETE | `/api/tasks/:id` | Delete task |
+| GET | `/api/projects/:id/labels` | List project labels |
+| POST | `/api/projects/:id/labels` | Create label |
+| DELETE | `/api/labels/:id` | Delete label |
+| GET | `/api/projects/:id/export?format=csv\|json` | Export board data |
 | GET | `/api/github/status` | GitHub integration config |
 | POST | `/api/webhooks/github` | GitHub issue webhook (no auth) |
 
@@ -199,7 +203,17 @@ In your GitHub repo: **Settings → Webhooks → Add webhook**
 
 ---
 
-## Authentication
+## Labels, filters, and export (Sprint 4)
+
+| Feature | How to use |
+|---------|------------|
+| **Labels** | Task modal → toggle labels or create new ones (per project) |
+| **Filters** | Board toolbar → search, priority, label, assignee |
+| **Export** | Board header → **CSV** or **JSON** download |
+
+Export includes column, title, description, priority, assignee, due date, labels, and GitHub issue URL.
+
+---
 
 Auth is **off by default** (no `JWT_SECRET`). CI and local dev work without credentials.
 
@@ -298,7 +312,7 @@ Verify in GitHub: **Settings → Actions → Runners** — should show `mission-
 | **Sprint 1b** | ✅ Done | MCP server + Cursor skill for agent coordination |
 | **Sprint 2** | ✅ Done | Telegram (Done/overdue/urgent), Email daily digest (Gmail API + SMTP) |
 | **Sprint 3** | ✅ Done | GitHub link + auto-create issues |
-| **Sprint 4** | Planned | Labels, filters, export |
+| **Sprint 4** | ✅ Done | Labels, filters, export |
 
 ---
 

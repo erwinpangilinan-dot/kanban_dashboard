@@ -129,6 +129,7 @@ server.tool(
       .nullable()
       .optional()
       .describe('Link to existing GitHub issue URL, or null to unlink'),
+    label_ids: z.array(z.string().uuid()).optional().describe('Label UUIDs for this task'),
   },
   async ({ task_id, ...fields }) =>
     jsonResult(await api(`/tasks/${task_id}`, { method: 'PUT', body: JSON.stringify(fields) }))

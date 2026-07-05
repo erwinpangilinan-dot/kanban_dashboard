@@ -19,8 +19,57 @@ const {
   unlinkIssue,
   syncIssueForColumnChange,
 } = require('../services/github');
+const { labelsForProject, labelsByTaskIds, attachLabels, setTaskLabels } = require('../services/labels');
+const { boardToCsv, boardToJson } = require('../services/export');
 
 const router = express.Router();
+
+async function loadBoardPayload(projectId) {
+  const { rows: projects } = await db.query(
+    'SELECT * FROM projects WHERE id = $1',
+    [projectId]
+  );
+  if (!projects.length) return null;
+
+  const { rows: boards } = await db.query(
+    'SELECT * FROM boards WHERE project_id = $1 ORDER BY created_at ASC LIMIT 1',
+    [projectId]
+  );
+  if (!boards.length) return null;
+
+  const board = boards[0];
+  const { rows: columns } = await db.query(
+    'SELECT * FROM columns WHERE board_id = $1 ORDER BY position ASC',
+    [board.id]
+  );
+  const { rows: tasks } = await db.query(
+    `SELECT t.* FROM tasks t
+     JOIN columns c ON c.id = t.column_id
+     WHERE c.board_id = $1
+     ORDER BY t.position ASC`,
+    [board.id]
+  );
+
+  const labelMap = await labelsByTaskIds(tasks.map((t) => t.id));
+  const enriched = attachLabels(tasks.map(enrichTask), labelMap);
+
+  return {
+    project: projects[0],
+    board,
+    labels: await labelsForProject(projectId),
+    columns: columns.map((col) => ({
+      ...col,
+      tasks: enriched.filter((t) => t.column_id === col.id),
+    })),
+  };
+}
+
+async function taskWithLabels(taskId) {
+  const { rows } = await db.query('SELECT * FROM tasks WHERE id = $1', [taskId]);
+  if (!rows.length) return null;
+  const labelMap = await labelsByTaskIds([taskId]);
+  return attachLabels([enrichTask(rows[0])], labelMap)[0];
+}
 
 // ── Projects ──────────────────────────────────────────────────────────────────
 
@@ -103,46 +152,63 @@ router.delete('/projects/:id', asyncHandler(async (req, res) => {
   res.status(204).send();
 }));
 
-// ── Board (full kanban payload) ───────────────────────────────────────────────
-
 router.get('/projects/:projectId/board', asyncHandler(async (req, res) => {
-  const { rows: projects } = await db.query(
-    'SELECT * FROM projects WHERE id = $1',
-    [req.params.projectId]
-  );
+  const payload = await loadBoardPayload(req.params.projectId);
+  if (!payload) return res.status(404).json({ error: 'Project or board not found.' });
+  res.json(payload);
+}));
+
+router.get('/projects/:projectId/export', asyncHandler(async (req, res) => {
+  const payload = await loadBoardPayload(req.params.projectId);
+  if (!payload) return res.status(404).json({ error: 'Project or board not found.' });
+
+  const format = (req.query.format || 'csv').toLowerCase();
+  const safeName = payload.project.name.replace(/[^a-zA-Z0-9-_]+/g, '-').toLowerCase();
+
+  if (format === 'json') {
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}-export.json"`);
+    return res.send(JSON.stringify(boardToJson(payload), null, 2));
+  }
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${safeName}-export.csv"`);
+  res.send(boardToCsv(payload));
+}));
+
+router.get('/projects/:projectId/labels', asyncHandler(async (req, res) => {
+  const { rows: projects } = await db.query('SELECT id FROM projects WHERE id = $1', [req.params.projectId]);
+  if (!projects.length) return res.status(404).json({ error: 'Project not found.' });
+  res.json(await labelsForProject(req.params.projectId));
+}));
+
+router.post('/projects/:projectId/labels', asyncHandler(async (req, res) => {
+  const { name, color } = req.body;
+  if (!name?.trim()) return res.status(400).json({ error: 'Label name is required.' });
+
+  const { rows: projects } = await db.query('SELECT id FROM projects WHERE id = $1', [req.params.projectId]);
   if (!projects.length) return res.status(404).json({ error: 'Project not found.' });
 
-  const { rows: boards } = await db.query(
-    'SELECT * FROM boards WHERE project_id = $1 ORDER BY created_at ASC LIMIT 1',
-    [req.params.projectId]
-  );
-  if (!boards.length) return res.status(404).json({ error: 'Board not found.' });
+  try {
+    const { rows } = await db.query(
+      `INSERT INTO labels (project_id, name, color)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+      [req.params.projectId, name.trim(), color || '#6366f1']
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'Label already exists in this project.' });
+    }
+    throw err;
+  }
+}));
 
-  const board = boards[0];
-
-  const { rows: columns } = await db.query(
-    'SELECT * FROM columns WHERE board_id = $1 ORDER BY position ASC',
-    [board.id]
-  );
-
-  const { rows: tasks } = await db.query(
-    `SELECT t.* FROM tasks t
-     JOIN columns c ON c.id = t.column_id
-     WHERE c.board_id = $1
-     ORDER BY t.position ASC`,
-    [board.id]
-  );
-
-  const columnsWithTasks = columns.map((col) => ({
-    ...col,
-    tasks: tasks.filter((t) => t.column_id === col.id).map(enrichTask),
-  }));
-
-  res.json({
-    project: projects[0],
-    board,
-    columns: columnsWithTasks,
-  });
+router.delete('/labels/:id', asyncHandler(async (req, res) => {
+  const { rowCount } = await db.query('DELETE FROM labels WHERE id = $1', [req.params.id]);
+  if (!rowCount) return res.status(404).json({ error: 'Label not found.' });
+  res.status(204).send();
 }));
 
 // ── Tasks ─────────────────────────────────────────────────────────────────────
@@ -189,7 +255,7 @@ router.post('/columns/:columnId/tasks', asyncHandler(async (req, res) => {
   }
 
   const { rows: refreshed } = await db.query('SELECT * FROM tasks WHERE id = $1', [task.id]);
-  const finalTask = enrichTask(refreshed[0] || task);
+  const finalTask = await taskWithLabels(refreshed[0]?.id || task.id);
 
   if (projectId) {
     await logActivity({
@@ -209,7 +275,7 @@ router.post('/columns/:columnId/tasks', asyncHandler(async (req, res) => {
 }));
 
 router.put('/tasks/:id', asyncHandler(async (req, res) => {
-  const { title, description, priority, assignee, due_date, github_issue_url } = req.body;
+  const { title, description, priority, assignee, due_date, github_issue_url, label_ids } = req.body;
   const { rows: before } = await db.query(
     'SELECT priority FROM tasks WHERE id = $1',
     [req.params.id]
@@ -240,8 +306,16 @@ router.put('/tasks/:id', asyncHandler(async (req, res) => {
     }
   }
 
-  const { rows: updatedRows } = await db.query('SELECT * FROM tasks WHERE id = $1', [req.params.id]);
-  const updatedTask = enrichTask(updatedRows[0] || task);
+  if (label_ids !== undefined) {
+    try {
+      await setTaskLabels(task.id, label_ids);
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
+    }
+  }
+
+  const updatedTask = await taskWithLabels(req.params.id);
+  if (!updatedTask) return res.status(404).json({ error: 'Task not found.' });
   const projectId = await getProjectIdForTask(updatedTask.id);
   if (projectId) {
     await logActivity({
@@ -371,7 +445,7 @@ router.patch('/tasks/:id/move', asyncHandler(async (req, res) => {
       }
     }
 
-    res.json(enrichTask(updatedTask));
+    res.json(await taskWithLabels(updatedTask.id));
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;

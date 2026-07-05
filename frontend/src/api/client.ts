@@ -3,6 +3,7 @@ import type {
   BoardData,
   CreateTaskInput,
   GitHubStatus,
+  Label,
   OverviewData,
   Project,
   Task,
@@ -100,6 +101,39 @@ export const api = {
 
   createGitHubIssue: (taskId: string) =>
     request<Task>(`/tasks/${taskId}/github-issue`, { method: 'POST' }),
+
+  createLabel: (projectId: string, data: { name: string; color?: string }) =>
+    request<Label>(`/projects/${projectId}/labels`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  deleteLabel: (labelId: string) =>
+    request<void>(`/labels/${labelId}`, { method: 'DELETE' }),
+
+  async exportBoard(projectId: string, format: 'csv' | 'json' = 'csv') {
+    const headers: Record<string, string> = {};
+    const token = getToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    const res = await fetch(`${BASE}/projects/${projectId}/export?format=${format}`, { headers });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || `Export failed: ${res.status}`);
+    }
+
+    const blob = await res.blob();
+    const disposition = res.headers.get('Content-Disposition') || '';
+    const match = disposition.match(/filename="([^"]+)"/);
+    const filename = match?.[1] || `export.${format}`;
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
 };
 
 export { setToken };

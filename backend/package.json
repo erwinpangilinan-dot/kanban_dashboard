@@ -11,6 +11,7 @@
     "verify:auth": "node scripts/verify-auth.js",
     "verify:notify": "node scripts/verify-notify.js",
     "verify:github": "node scripts/verify-github.js",
+    "verify:labels": "node scripts/verify-labels.js",
     "sync:google-token": "node scripts/sync-google-token.js",
     "send:digest": "node scripts/send-digest.js"
   },

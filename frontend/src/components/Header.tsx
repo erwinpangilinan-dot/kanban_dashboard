@@ -1,4 +1,4 @@
-import { LogOut, RefreshCw } from 'lucide-react';
+import { Download, LogOut, RefreshCw } from 'lucide-react';
 import { AUTO_REFRESH_MS } from '../lib/autoRefresh';
 import type { AppView, Project } from '../types';
 
@@ -12,6 +12,8 @@ interface HeaderProps {
   onLogout?: () => void;
   autoRefresh?: boolean;
   onAutoRefreshChange?: (enabled: boolean) => void;
+  onExport?: (format: 'csv' | 'json') => void;
+  exporting?: boolean;
 }
 
 export function Header({
@@ -24,6 +26,8 @@ export function Header({
   onLogout,
   autoRefresh = false,
   onAutoRefreshChange,
+  onExport,
+  exporting = false,
 }: HeaderProps) {
   const title = view === 'overview' ? 'Overview' : (project?.name ?? 'Board');
   const subtitle =
@@ -58,6 +62,31 @@ export function Header({
           >
             <LogOut className="h-4 w-4" />
           </button>
+        )}
+        {onExport && (
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => onExport('csv')}
+              disabled={exporting}
+              title="Export CSV"
+              className="rounded-lg border border-surface-border px-2.5 py-1.5 text-xs font-medium text-gray-400 transition-colors hover:border-accent/40 hover:text-accent-hover disabled:opacity-50"
+            >
+              <span className="inline-flex items-center gap-1">
+                <Download className="h-3.5 w-3.5" />
+                CSV
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onExport('json')}
+              disabled={exporting}
+              title="Export JSON"
+              className="rounded-lg border border-surface-border px-2.5 py-1.5 text-xs font-medium text-gray-400 transition-colors hover:border-accent/40 hover:text-accent-hover disabled:opacity-50"
+            >
+              JSON
+            </button>
+          </div>
         )}
         {onAutoRefreshChange && (
           <button

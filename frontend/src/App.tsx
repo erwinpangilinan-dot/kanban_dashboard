@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, setUnauthorizedHandler } from './api/client';
 import { Header } from './components/Header';
+import { BoardFiltersBar } from './components/BoardFiltersBar';
 import { KanbanBoard } from './components/KanbanBoard';
 import { LoginPage } from './components/LoginPage';
 import { OverviewPage } from './components/OverviewPage';
@@ -9,8 +10,9 @@ import { Sidebar } from './components/Sidebar';
 import { TaskModal } from './components/TaskModal';
 import { useAutoRefresh } from './hooks/useAutoRefresh';
 import { getAutoRefreshEnabled, setAutoRefreshEnabled } from './lib/autoRefresh';
+import { EMPTY_FILTERS, collectAssignees, filterColumns } from './lib/boardFilters';
 import { clearToken, getToken } from './lib/auth';
-import type { AppView, BoardData, OverviewData, Project, Task } from './types';
+import type { AppView, BoardData, Label, OverviewData, Project, Task, UpdateTaskInput } from './types';
 
 type AuthState = 'loading' | 'login' | 'ready';
 
@@ -28,6 +30,8 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(getAutoRefreshEnabled);
+  const [boardFilters, setBoardFilters] = useState(EMPTY_FILTERS);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     setUnauthorizedHandler(() => {
@@ -147,6 +151,7 @@ export default function App() {
   }
 
   function handleSelectProject(projectId: string) {
+    setBoardFilters(EMPTY_FILTERS);
     setActiveProjectId(projectId);
     setView('board');
   }
@@ -183,12 +188,19 @@ export default function App() {
   }
 
   function handleMoveTask(taskId: string, columnId: string, position: number) {
-    api.moveTask(taskId, columnId, position).catch(() => {
-      if (activeProjectId) loadBoard(activeProjectId);
-    });
+    const hasFilters =
+      boardFilters.search || boardFilters.priority || boardFilters.labelId || boardFilters.assignee;
+    api
+      .moveTask(taskId, columnId, position)
+      .then(() => {
+        if (hasFilters && activeProjectId) loadBoard(activeProjectId, true);
+      })
+      .catch(() => {
+        if (activeProjectId) loadBoard(activeProjectId);
+      });
   }
 
-  async function handleSaveTask(taskId: string, data: Partial<Task>) {
+  async function handleSaveTask(taskId: string, data: UpdateTaskInput) {
     const updated = await api.updateTask(taskId, data);
     setBoardData((prev) => {
       if (!prev) return prev;
@@ -231,8 +243,32 @@ export default function App() {
     });
   }
 
-  const taskCount =
-    boardData?.columns.reduce((sum, col) => sum + col.tasks.length, 0) ?? 0;
+  function handleLabelCreated(label: Label) {
+    setBoardData((prev) => {
+      if (!prev) return prev;
+      return { ...prev, labels: [...(prev.labels ?? []), label] };
+    });
+  }
+
+  async function handleExport(format: 'csv' | 'json') {
+    if (!activeProjectId) return;
+    setExporting(true);
+    try {
+      await api.exportBoard(activeProjectId, format);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Export failed');
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  const filteredColumns = boardData
+    ? filterColumns(boardData.columns, boardFilters)
+    : [];
+
+  const visibleTaskCount = filteredColumns.reduce((sum, col) => sum + col.tasks.length, 0);
+  const totalTaskCount = boardData?.columns.reduce((sum, col) => sum + col.tasks.length, 0) ?? 0;
+  const assignees = boardData ? collectAssignees(boardData.columns) : [];
 
   const showSpinner =
     loading && (view === 'overview' ? !overviewData : !boardData);
@@ -264,13 +300,15 @@ export default function App() {
         <Header
           view={view}
           project={boardData?.project ?? null}
-          taskCount={taskCount}
+          taskCount={visibleTaskCount}
           onRefresh={handleRefresh}
           loading={loading}
           username={authEnabled ? username : null}
           onLogout={authEnabled ? handleLogout : undefined}
           autoRefresh={autoRefresh}
           onAutoRefreshChange={view === 'board' ? handleAutoRefreshChange : undefined}
+          onExport={view === 'board' && activeProjectId ? handleExport : undefined}
+          exporting={exporting}
         />
 
         <main className="flex-1 overflow-auto p-6">
@@ -293,15 +331,30 @@ export default function App() {
               onSelectProject={handleSelectProject}
             />
           ) : view === 'board' && boardData ? (
-            <KanbanBoard
-              columns={boardData.columns}
-              onColumnsChange={(columns) =>
-                setBoardData((prev) => (prev ? { ...prev, columns } : prev))
-              }
-              onMoveTask={handleMoveTask}
-              onAddTask={handleAddTask}
-              onTaskClick={setSelectedTask}
-            />
+            <>
+              <BoardFiltersBar
+                filters={boardFilters}
+                labels={boardData.labels ?? []}
+                assignees={assignees}
+                onChange={setBoardFilters}
+              />
+              {visibleTaskCount < totalTaskCount && (
+                <p className="mb-3 text-xs text-gray-500">
+                  Showing {visibleTaskCount} of {totalTaskCount} tasks
+                </p>
+              )}
+              <KanbanBoard
+                columns={filteredColumns}
+                onColumnsChange={(columns) => {
+                  if (!boardFilters.search && !boardFilters.priority && !boardFilters.labelId && !boardFilters.assignee) {
+                    setBoardData((prev) => (prev ? { ...prev, columns } : prev));
+                  }
+                }}
+                onMoveTask={handleMoveTask}
+                onAddTask={handleAddTask}
+                onTaskClick={setSelectedTask}
+              />
+            </>
           ) : (
             <div className="flex h-64 flex-col items-center justify-center text-gray-500">
               <p>No data available</p>
@@ -317,13 +370,16 @@ export default function App() {
         </main>
       </div>
 
-      {selectedTask && (
+      {selectedTask && activeProjectId && (
         <TaskModal
           task={selectedTask}
+          projectId={activeProjectId}
+          projectLabels={boardData?.labels ?? []}
           onClose={() => setSelectedTask(null)}
           onSave={handleSaveTask}
           onDelete={handleDeleteTask}
           onTaskUpdated={handleTaskUpdated}
+          onLabelCreated={handleLabelCreated}
         />
       )}
 

@@ -64,7 +64,7 @@ async function seed() {
       due: '2026-07-25',
     },
     {
-      column: 0,
+      column: 4,
       title: 'Sprint 4: Labels, filters, export',
       description: 'Task labels, board filters, and data export (Sprint 4)',
       priority: 'medium',
