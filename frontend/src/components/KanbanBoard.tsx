@@ -3,12 +3,12 @@ import {
   DragOverlay,
   PointerSensor,
   TouchSensor,
-  closestCorners,
+  pointerWithin,
   useSensor,
   useSensors,
   type DragEndEvent,
-  type DragOverEvent,
   type DragStartEvent,
+  type Over,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { useEffect, useRef, useState } from 'react';
@@ -31,6 +31,12 @@ function findColumn(columns: Column[], id: string): Column | undefined {
   return columns.find((c) => c.tasks.some((t) => t.id === id));
 }
 
+function resolveDropColumn(columns: Column[], over: Over): Column | undefined {
+  const data = over.data.current;
+  if (data?.type === 'column') return data.column as Column;
+  return findColumn(columns, over.id as string);
+}
+
 export function KanbanBoard({
   columns,
   onColumnsChange,
@@ -40,6 +46,7 @@ export function KanbanBoard({
 }: KanbanBoardProps) {
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const columnsRef = useRef(columns);
+  const dragStartColumns = useRef(columns);
 
   useEffect(() => {
     columnsRef.current = columns;
@@ -52,6 +59,7 @@ export function KanbanBoard({
 
   function handleDragStart(event: DragStartEvent) {
     const task = event.active.data.current?.task as Task | undefined;
+    dragStartColumns.current = columnsRef.current;
     if (task) setActiveTask(task);
   }
 
@@ -82,23 +90,6 @@ export function KanbanBoard({
     });
   }
 
-  function handleDragOver(event: DragOverEvent) {
-    const { active, over } = event;
-    if (!over) return;
-
-    const activeId = active.id as string;
-    const overId = over.id as string;
-    const cols = columnsRef.current;
-
-    const activeColumn = findColumn(cols, activeId);
-    const overColumn = findColumn(cols, overId);
-    if (!activeColumn || !overColumn || activeColumn.id === overColumn.id) return;
-
-    const nextColumns = moveTaskBetweenColumns(cols, activeId, activeColumn, overColumn, overId);
-    columnsRef.current = nextColumns;
-    onColumnsChange(nextColumns);
-  }
-
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     setActiveTask(null);
@@ -106,12 +97,12 @@ export function KanbanBoard({
 
     const activeId = active.id as string;
     const overId = over.id as string;
-    const cols = columnsRef.current;
+    const cols = dragStartColumns.current;
 
     const activeColumn = findColumn(cols, activeId);
     if (!activeColumn) return;
 
-    const targetColumn = findColumn(cols, overId);
+    const targetColumn = resolveDropColumn(cols, over);
     if (!targetColumn) return;
 
     let nextColumns = cols;
@@ -124,14 +115,13 @@ export function KanbanBoard({
           if (col.id !== targetColumn.id) return col;
           return { ...col, tasks: arrayMove(col.tasks, oldIndex, newIndex) };
         });
-        columnsRef.current = nextColumns;
-        onColumnsChange(nextColumns);
       }
     } else {
       nextColumns = moveTaskBetweenColumns(cols, activeId, activeColumn, targetColumn, overId);
-      columnsRef.current = nextColumns;
-      onColumnsChange(nextColumns);
     }
+
+    columnsRef.current = nextColumns;
+    onColumnsChange(nextColumns);
 
     const finalColumn = findColumn(nextColumns, activeId);
     if (!finalColumn) return;
@@ -143,9 +133,8 @@ export function KanbanBoard({
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={pointerWithin}
       onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
       <div className="flex gap-4 overflow-x-auto pb-4">
@@ -159,7 +148,7 @@ export function KanbanBoard({
         ))}
       </div>
 
-      <DragOverlay>
+      <DragOverlay dropAnimation={null}>
         {activeTask ? (
           <div className="rotate-2 opacity-90">
             <TaskCard task={activeTask} onClick={() => {}} />
