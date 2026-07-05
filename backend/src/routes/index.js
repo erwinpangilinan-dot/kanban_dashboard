@@ -9,6 +9,15 @@ const {
   getColumnName,
 } = require('../services/activity');
 const { fireAndForget, notifyCompleted, notifyUrgent } = require('../services/notify');
+const {
+  enrichTask,
+  autoCreateEnabled,
+  isEnabled,
+  defaultRepo,
+  createIssueForTask,
+  linkIssueToTask,
+  unlinkIssue,
+} = require('../services/github');
 
 const router = express.Router();
 
@@ -56,6 +65,14 @@ router.post('/projects', asyncHandler(async (req, res) => {
 }));
 
 router.use(require('./overview'));
+
+router.get('/github/status', asyncHandler(async (_req, res) => {
+  res.json({
+    enabled: isEnabled(),
+    default_repo: defaultRepo(),
+    auto_create: autoCreateEnabled(),
+  });
+}));
 
 router.get('/projects/:id', asyncHandler(async (req, res) => {
   const { rows } = await db.query('SELECT * FROM projects WHERE id = $1', [req.params.id]);
@@ -117,7 +134,7 @@ router.get('/projects/:projectId/board', asyncHandler(async (req, res) => {
 
   const columnsWithTasks = columns.map((col) => ({
     ...col,
-    tasks: tasks.filter((t) => t.column_id === col.id),
+    tasks: tasks.filter((t) => t.column_id === col.id).map(enrichTask),
   }));
 
   res.json({
@@ -130,7 +147,7 @@ router.get('/projects/:projectId/board', asyncHandler(async (req, res) => {
 // ── Tasks ─────────────────────────────────────────────────────────────────────
 
 router.post('/columns/:columnId/tasks', asyncHandler(async (req, res) => {
-  const { title, description, priority, assignee, due_date } = req.body;
+  const { title, description, priority, assignee, due_date, create_github_issue } = req.body;
   if (!title?.trim()) {
     return res.status(400).json({ error: 'Task title is required.' });
   }
@@ -159,25 +176,39 @@ router.post('/columns/:columnId/tasks', asyncHandler(async (req, res) => {
   const projectId = await getProjectIdForColumn(req.params.columnId);
   const columnName = await getColumnName(req.params.columnId);
 
-  if (projectId) {
-    await logActivity({
-      taskId: task.id,
-      projectId,
-      action: 'created',
-      taskTitle: task.title,
-      toColumn: columnName,
-      metadata: { priority: task.priority },
-    });
-    if (task.priority === 'urgent') {
-      fireAndForget(() => notifyUrgent(task.id));
+  const shouldCreateIssue = create_github_issue === true
+    || (create_github_issue !== false && autoCreateEnabled());
+
+  if (shouldCreateIssue) {
+    try {
+      await createIssueForTask(task.id);
+    } catch (err) {
+      console.error('GitHub issue creation failed:', err.message);
     }
   }
 
-  res.status(201).json(task);
+  const { rows: refreshed } = await db.query('SELECT * FROM tasks WHERE id = $1', [task.id]);
+  const finalTask = enrichTask(refreshed[0] || task);
+
+  if (projectId) {
+    await logActivity({
+      taskId: finalTask.id,
+      projectId,
+      action: 'created',
+      taskTitle: finalTask.title,
+      toColumn: columnName,
+      metadata: { priority: finalTask.priority },
+    });
+    if (finalTask.priority === 'urgent') {
+      fireAndForget(() => notifyUrgent(finalTask.id));
+    }
+  }
+
+  res.status(201).json(finalTask);
 }));
 
 router.put('/tasks/:id', asyncHandler(async (req, res) => {
-  const { title, description, priority, assignee, due_date } = req.body;
+  const { title, description, priority, assignee, due_date, github_issue_url } = req.body;
   const { rows: before } = await db.query(
     'SELECT priority FROM tasks WHERE id = $1',
     [req.params.id]
@@ -199,20 +230,41 @@ router.put('/tasks/:id', asyncHandler(async (req, res) => {
   if (!rows.length) return res.status(404).json({ error: 'Task not found.' });
 
   const task = rows[0];
-  const projectId = await getProjectIdForTask(task.id);
-  if (projectId) {
-    await logActivity({
-      taskId: task.id,
-      projectId,
-      action: 'updated',
-      taskTitle: task.title,
-    });
-    if (task.priority === 'urgent' && before[0].priority !== 'urgent') {
-      fireAndForget(() => notifyUrgent(task.id));
+
+  if (github_issue_url !== undefined) {
+    if (github_issue_url === null || github_issue_url === '') {
+      await unlinkIssue(task.id);
+    } else {
+      await linkIssueToTask(task.id, github_issue_url);
     }
   }
 
-  res.json(task);
+  const { rows: updatedRows } = await db.query('SELECT * FROM tasks WHERE id = $1', [req.params.id]);
+  const updatedTask = enrichTask(updatedRows[0] || task);
+  const projectId = await getProjectIdForTask(updatedTask.id);
+  if (projectId) {
+    await logActivity({
+      taskId: updatedTask.id,
+      projectId,
+      action: 'updated',
+      taskTitle: updatedTask.title,
+    });
+    if (updatedTask.priority === 'urgent' && before[0].priority !== 'urgent') {
+      fireAndForget(() => notifyUrgent(updatedTask.id));
+    }
+  }
+
+  res.json(updatedTask);
+}));
+
+router.post('/tasks/:id/github-issue', asyncHandler(async (req, res) => {
+  if (!isEnabled()) {
+    return res.status(503).json({ error: 'GitHub integration is not configured.' });
+  }
+
+  const { github_repo } = req.body || {};
+  const task = await createIssueForTask(req.params.id, github_repo);
+  res.status(201).json(task);
 }));
 
 router.delete('/tasks/:id', asyncHandler(async (req, res) => {
@@ -315,7 +367,7 @@ router.patch('/tasks/:id/move', asyncHandler(async (req, res) => {
       }
     }
 
-    res.json(updatedTask);
+    res.json(enrichTask(updatedTask));
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;

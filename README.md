@@ -88,9 +88,12 @@ kanban_dashboard/
 | POST | `/api/projects` | Create project |
 | GET | `/api/projects/:id/board` | Kanban board payload |
 | POST | `/api/columns/:id/tasks` | Create task |
-| PUT | `/api/tasks/:id` | Update task |
+| PUT | `/api/tasks/:id` | Update task (supports `github_issue_url`) |
+| POST | `/api/tasks/:id/github-issue` | Create GitHub issue for task |
 | PATCH | `/api/tasks/:id/move` | Move/reorder task |
 | DELETE | `/api/tasks/:id` | Delete task |
+| GET | `/api/github/status` | GitHub integration config |
+| POST | `/api/webhooks/github` | GitHub issue webhook (no auth) |
 
 ---
 
@@ -164,6 +167,37 @@ The digest includes global metrics, per-project progress, upcoming deadlines, an
 
 ---
 
+## GitHub integration (Sprint 3)
+
+Link Kanban tasks to GitHub issues and optionally auto-create issues when tasks are added.
+
+### Setup
+
+```bash
+GITHUB_TOKEN=ghp_...                    # fine-grained or classic PAT with repo issues scope
+GITHUB_DEFAULT_REPO=your-org/your-repo  # owner/repo for auto-create
+GITHUB_AUTO_CREATE=true                 # set false to disable auto-create on new tasks
+MISSION_CONTROL_PUBLIC_URL=https://your-dashboard.example.com  # link back in issue body
+```
+
+| Feature | How it works |
+|---------|----------------|
+| **Auto-create** | New tasks get a GitHub issue when `GITHUB_TOKEN` + `GITHUB_DEFAULT_REPO` are set |
+| **Manual link** | Paste an issue URL in the task modal, or set `github_issue_url` via API/MCP |
+| **Create button** | Task modal → "Create GitHub issue" when not yet linked |
+| **Webhook sync** | Closing/reopening an issue moves the linked task to Done / To Do |
+
+### Webhook
+
+In your GitHub repo: **Settings → Webhooks → Add webhook**
+
+- **Payload URL:** `https://your-dashboard.example.com/api/webhooks/github`
+- **Content type:** `application/json`
+- **Secret:** same value as `GITHUB_WEBHOOK_SECRET`
+- **Events:** Issues
+
+---
+
 ## Authentication
 
 Auth is **off by default** (no `JWT_SECRET`). CI and local dev work without credentials.
@@ -179,7 +213,7 @@ AUTH_API_TOKEN=token-for-mcp-and-scripts
 
 - **Dashboard:** sign-in page appears when auth is enabled
 - **MCP / scripts:** send `Authorization: Bearer $AUTH_API_TOKEN`
-- **Public routes:** `/api/health`, `/api/auth/status`, `/api/auth/login`
+- **Public routes:** `/api/health`, `/api/auth/status`, `/api/auth/login`, `/api/webhooks/github`
 
 ---
 
@@ -262,7 +296,7 @@ Verify in GitHub: **Settings → Actions → Runners** — should show `mission-
 | **Sprint 1** | ✅ Done | Overview + metrics + Docker |
 | **Sprint 1b** | ✅ Done | MCP server + Cursor skill for agent coordination |
 | **Sprint 2** | ✅ Done | Telegram (Done/overdue/urgent), Email daily digest (Gmail API + SMTP) |
-| **Sprint 3** | Planned | GitHub link + auto-create issues |
+| **Sprint 3** | ✅ Done | GitHub link + auto-create issues |
 | **Sprint 4** | Planned | Labels, filters, export |
 
 ---
@@ -319,6 +353,10 @@ See `.env.example` for all options. Key variables:
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | Telegram push notifications (Sprint 2) |
 | `GOOGLE_*` / `EMAIL_*` | Gmail API or SMTP daily digest (Sprint 2) |
 | `GITHUB_TOKEN` | GitHub API token (Sprint 3) |
+| `GITHUB_DEFAULT_REPO` | Default `owner/repo` for auto-created issues |
+| `GITHUB_WEBHOOK_SECRET` | Webhook signature secret (Sprint 3) |
+| `GITHUB_AUTO_CREATE` | Auto-create issues on new tasks (default `true`) |
+| `MISSION_CONTROL_PUBLIC_URL` | Dashboard URL embedded in GitHub issue bodies |
 
 ---
 

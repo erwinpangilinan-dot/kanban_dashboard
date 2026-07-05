@@ -72,7 +72,7 @@ async function seed() {
       due: '2026-08-15',
     },
     {
-      column: 0,
+      column: 4,
       title: 'Sprint 3: GitHub link + auto-create issues',
       description: 'Link tasks to GitHub repos and auto-create issues (Sprint 3)',
       priority: 'medium',

@@ -28,6 +28,15 @@ export interface Task {
   position: number;
   created_at: string;
   updated_at: string;
+  github_repo?: string | null;
+  github_issue_number?: number | null;
+  github_issue_url?: string | null;
+}
+
+export interface GitHubStatus {
+  enabled: boolean;
+  default_repo: string | null;
+  auto_create: boolean;
 }
 
 export interface Column {
@@ -59,6 +68,7 @@ export interface UpdateTaskInput {
   priority?: TaskPriority;
   assignee?: string | null;
   due_date?: string | null;
+  github_issue_url?: string | null;
 }
 
 export interface OverviewMetrics {

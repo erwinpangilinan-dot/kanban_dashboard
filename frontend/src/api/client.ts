@@ -2,6 +2,7 @@ import { clearToken, getToken, setToken } from '../lib/auth';
 import type {
   BoardData,
   CreateTaskInput,
+  GitHubStatus,
   OverviewData,
   Project,
   Task,
@@ -94,6 +95,11 @@ export const api = {
     }),
 
   getOverview: () => request<OverviewData>('/overview'),
+
+  getGitHubStatus: () => request<GitHubStatus>('/github/status'),
+
+  createGitHubIssue: (taskId: string) =>
+    request<Task>(`/tasks/${taskId}/github-issue`, { method: 'POST' }),
 };
 
 export { setToken };

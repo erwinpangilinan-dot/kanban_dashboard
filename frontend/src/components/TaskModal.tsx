@@ -1,5 +1,6 @@
-import { Trash2, X } from 'lucide-react';
+import { ExternalLink, Github, Trash2, Unlink, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { api } from '../api/client';
 import type { Task, TaskPriority } from '../types';
 import { PRIORITY_CONFIG } from '../lib/utils';
 
@@ -8,18 +9,26 @@ interface TaskModalProps {
   onClose: () => void;
   onSave: (taskId: string, data: Partial<Task>) => Promise<void>;
   onDelete: (taskId: string) => Promise<void>;
+  onTaskUpdated?: (task: Task) => void;
 }
 
 const PRIORITIES: TaskPriority[] = ['low', 'medium', 'high', 'urgent'];
 
-export function TaskModal({ task, onClose, onSave, onDelete }: TaskModalProps) {
+export function TaskModal({ task, onClose, onSave, onDelete, onTaskUpdated }: TaskModalProps) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? '');
   const [priority, setPriority] = useState<TaskPriority>(task.priority);
   const [assignee, setAssignee] = useState(task.assignee ?? '');
   const [dueDate, setDueDate] = useState(task.due_date ?? '');
+  const [githubUrl, setGithubUrl] = useState(task.github_issue_url ?? '');
+  const [githubEnabled, setGithubEnabled] = useState(false);
+  const [creatingIssue, setCreatingIssue] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    api.getGitHubStatus().then((s) => setGithubEnabled(s.enabled)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -39,11 +48,27 @@ export function TaskModal({ task, onClose, onSave, onDelete }: TaskModalProps) {
         priority,
         assignee: assignee.trim() || null,
         due_date: dueDate || null,
+        github_issue_url: githubUrl.trim() || null,
       });
       onClose();
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleCreateIssue() {
+    setCreatingIssue(true);
+    try {
+      const updated = await api.createGitHubIssue(task.id);
+      setGithubUrl(updated.github_issue_url ?? '');
+      onTaskUpdated?.(updated);
+    } finally {
+      setCreatingIssue(false);
+    }
+  }
+
+  function handleUnlink() {
+    setGithubUrl('');
   }
 
   async function handleDelete() {
@@ -133,6 +158,54 @@ export function TaskModal({ task, onClose, onSave, onDelete }: TaskModalProps) {
               className="w-full rounded-lg border border-surface-border bg-surface-overlay px-3 py-2 text-sm text-gray-100 outline-none focus:border-accent"
             />
           </div>
+
+          {githubEnabled && (
+            <div>
+              <label className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-gray-500">
+                <Github className="h-3.5 w-3.5" />
+                GitHub Issue
+              </label>
+              {githubUrl ? (
+                <div className="flex items-center gap-2">
+                  <a
+                    href={githubUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex min-w-0 flex-1 items-center gap-1.5 truncate rounded-lg border border-surface-border bg-surface-overlay px-3 py-2 text-sm text-accent hover:text-accent-hover"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{githubUrl.replace('https://github.com/', '')}</span>
+                  </a>
+                  <button
+                    type="button"
+                    onClick={handleUnlink}
+                    title="Unlink issue"
+                    className="rounded-lg border border-surface-border p-2 text-gray-400 hover:text-gray-200"
+                  >
+                    <Unlink className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <input
+                    value={githubUrl}
+                    onChange={(e) => setGithubUrl(e.target.value)}
+                    placeholder="https://github.com/org/repo/issues/123"
+                    className="w-full rounded-lg border border-surface-border bg-surface-overlay px-3 py-2 text-sm text-gray-100 outline-none focus:border-accent"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCreateIssue}
+                    disabled={creatingIssue}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-surface-border px-3 py-2 text-sm text-gray-300 transition-colors hover:border-accent/40 hover:text-white disabled:opacity-50"
+                  >
+                    <Github className="h-4 w-4" />
+                    {creatingIssue ? 'Creating issue...' : 'Create GitHub issue'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between border-t border-surface-border px-5 py-4">

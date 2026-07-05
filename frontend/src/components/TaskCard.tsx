@@ -1,6 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Calendar, GripVertical } from 'lucide-react';
+import { Calendar, Github, GripVertical } from 'lucide-react';
 import type { Task } from '../types';
 import { PRIORITY_CONFIG, formatDueDate, getInitials, isOverdue } from '../lib/utils';
 
@@ -79,6 +79,21 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
                 <Calendar className="h-3 w-3" />
                 {dueLabel}
               </span>
+            )}
+
+            {task.github_issue_url && (
+              <a
+                href={task.github_issue_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 text-[11px] text-gray-500 hover:text-accent"
+                title="GitHub issue"
+              >
+                <Github className="h-3 w-3" />
+                #{task.github_issue_number}
+              </a>
             )}
           </div>
 

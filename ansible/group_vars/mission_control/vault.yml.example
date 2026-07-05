@@ -17,3 +17,10 @@ mc_email_to: ""
 mc_google_client_id: ""
 mc_google_client_secret: ""
 mc_google_refresh_token: ""
+mc_google_send_as: ""
+
+# Sprint 3: GitHub integration
+mc_github_token: ""
+mc_github_webhook_secret: ""
+mc_github_default_repo: "erwinpangilinan-dot/kanban_dashboard"
+mc_github_auto_create: "true"

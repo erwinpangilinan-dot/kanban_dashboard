@@ -9,6 +9,7 @@ const { migrate } = require('./migrate');
 const { seed } = require('./seed');
 const routes = require('./routes');
 const authRoutes = require('./routes/auth');
+const webhookRoutes = require('./routes/webhooks');
 const { requireAuth } = require('./middleware/auth');
 const { errorHandler } = require('./middleware/errorHandler');
 const { startOverdueChecker } = require('./services/notify');
@@ -18,6 +19,7 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(cors());
+app.use('/api/webhooks', express.raw({ type: 'application/json' }), webhookRoutes);
 app.use(express.json());
 
 app.get('/api/health', async (_req, res) => {

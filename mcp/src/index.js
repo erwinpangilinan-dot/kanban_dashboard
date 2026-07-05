@@ -99,12 +99,16 @@ server.tool(
     priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
     assignee: z.string().optional(),
     due_date: z.string().optional().describe('ISO date YYYY-MM-DD'),
+    create_github_issue: z
+      .boolean()
+      .optional()
+      .describe('Create a linked GitHub issue (requires GITHUB_TOKEN)'),
   },
-  async ({ project_id, column_name, ...task }) => {
+  async ({ project_id, column_name, create_github_issue, ...task }) => {
     const { column } = await findColumnByName(project_id, column_name);
     const created = await api(`/columns/${column.id}/tasks`, {
       method: 'POST',
-      body: JSON.stringify(task),
+      body: JSON.stringify({ ...task, create_github_issue }),
     });
     return jsonResult(created);
   }
@@ -120,6 +124,11 @@ server.tool(
     priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
     assignee: z.string().nullable().optional(),
     due_date: z.string().nullable().optional().describe('YYYY-MM-DD or null to clear'),
+    github_issue_url: z
+      .string()
+      .nullable()
+      .optional()
+      .describe('Link to existing GitHub issue URL, or null to unlink'),
   },
   async ({ task_id, ...fields }) =>
     jsonResult(await api(`/tasks/${task_id}`, { method: 'PUT', body: JSON.stringify(fields) }))

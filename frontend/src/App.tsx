@@ -200,6 +200,21 @@ export default function App() {
         })),
       };
     });
+    setSelectedTask((prev) => (prev?.id === taskId ? updated : prev));
+  }
+
+  function handleTaskUpdated(task: Task) {
+    setBoardData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        columns: prev.columns.map((col) => ({
+          ...col,
+          tasks: col.tasks.map((t) => (t.id === task.id ? task : t)),
+        })),
+      };
+    });
+    setSelectedTask(task);
   }
 
   async function handleDeleteTask(taskId: string) {
@@ -308,6 +323,7 @@ export default function App() {
           onClose={() => setSelectedTask(null)}
           onSave={handleSaveTask}
           onDelete={handleDeleteTask}
+          onTaskUpdated={handleTaskUpdated}
         />
       )}
 

@@ -10,6 +10,7 @@
     "seed": "node -e \"require('dotenv').config({path:'../.env'}); require('./src/seed').seed().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); })\"",
     "verify:auth": "node scripts/verify-auth.js",
     "verify:notify": "node scripts/verify-notify.js",
+    "verify:github": "node scripts/verify-github.js",
     "sync:google-token": "node scripts/sync-google-token.js",
     "send:digest": "node scripts/send-digest.js"
   },
