@@ -106,7 +106,7 @@ async function checkOverdueTasks() {
 }
 
 function fireAndForget(fn) {
-  fn().catch((err) => console.error('Notification failed:', err.message));
+  fn().catch((err) => console.error('Background task failed:', err.message));
 }
 
 function startOverdueChecker() {

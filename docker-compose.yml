@@ -21,6 +21,8 @@ services:
       dockerfile: backend/Dockerfile
     container_name: mission_control_api
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       DATABASE_URL: postgresql://kanban:kanban@postgres:5432/mission_control
       PORT: 3001
