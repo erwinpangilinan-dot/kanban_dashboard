@@ -5,6 +5,7 @@ const {
   issueUrl,
   enrichTask,
   buildIssueBody,
+  issueStateForColumnChange,
   verifyWebhookSignature,
   autoCreateEnabled,
   isEnabled,
@@ -36,6 +37,11 @@ const body = buildIssueBody(
 );
 assert(body.includes('Details here'));
 assert(body.includes('**Priority:** high'));
+
+assert.strictEqual(issueStateForColumnChange('In Progress', 'Done'), 'closed');
+assert.strictEqual(issueStateForColumnChange('Done', 'To Do'), 'open');
+assert.strictEqual(issueStateForColumnChange('Backlog', 'To Do'), null);
+assert.strictEqual(issueStateForColumnChange('Review', 'Done'), null);
 
 const secret = 'test-secret';
 const payload = Buffer.from('{"action":"closed"}');

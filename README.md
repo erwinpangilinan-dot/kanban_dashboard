@@ -186,6 +186,7 @@ MISSION_CONTROL_PUBLIC_URL=https://your-dashboard.example.com  # link back in is
 | **Manual link** | Paste an issue URL in the task modal, or set `github_issue_url` via API/MCP |
 | **Create button** | Task modal → "Create GitHub issue" when not yet linked |
 | **Webhook sync** | Closing/reopening an issue moves the linked task to Done / To Do |
+| **Board → GitHub** | Moving a task to Review/Done closes the issue; moving out reopens it |
 
 ### Webhook
 

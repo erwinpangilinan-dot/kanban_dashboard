@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const db = require('../db');
+const { isCompletedColumn } = require('../lib/columns');
 const { logActivity, getProjectIdForTask, getColumnName } = require('./activity');
 
 const ISSUE_URL_RE = /^https?:\/\/github\.com\/([^/]+\/[^/]+)\/issues\/(\d+)\/?$/i;
@@ -58,6 +59,46 @@ function buildIssueBody(task, projectName) {
   const base = publicUrl();
   if (base) lines.push('', `[Open in Mission Control](${base})`);
   return lines.join('\n');
+}
+
+function issueStateForColumnChange(fromColumn, toColumn) {
+  const wasCompleted = isCompletedColumn(fromColumn);
+  const nowCompleted = isCompletedColumn(toColumn);
+  if (!wasCompleted && nowCompleted) return 'closed';
+  if (wasCompleted && !nowCompleted) return 'open';
+  return null;
+}
+
+async function setIssueState(repo, issueNumber, state) {
+  return githubApi(`/repos/${repo}/issues/${issueNumber}`, {
+    method: 'PATCH',
+    body: { state },
+  });
+}
+
+async function syncIssueForColumnChange(task, fromColumn, toColumn) {
+  if (!isEnabled() || !task?.github_repo || !task?.github_issue_number) return;
+
+  const state = issueStateForColumnChange(fromColumn, toColumn);
+  if (!state) return;
+
+  await setIssueState(task.github_repo, task.github_issue_number, state);
+
+  const projectId = await getProjectIdForTask(task.id);
+  if (projectId) {
+    await logActivity({
+      taskId: task.id,
+      projectId,
+      action: state === 'closed' ? 'github_issue_closed' : 'github_issue_reopened',
+      taskTitle: task.title,
+      fromColumn,
+      toColumn,
+      metadata: {
+        github_repo: task.github_repo,
+        github_issue_number: task.github_issue_number,
+      },
+    });
+  }
 }
 
 async function githubApi(path, { method = 'GET', body } = {}) {
@@ -264,6 +305,16 @@ async function handleWebhookEvent(event, payload) {
   if (!rows.length) return { handled: false, reason: 'no_linked_task' };
 
   const taskId = rows[0].id;
+  const { rows: taskRows } = await db.query('SELECT column_id FROM tasks WHERE id = $1', [taskId]);
+  const currentColumn = taskRows.length ? await getColumnName(taskRows[0].column_id) : null;
+
+  if (action === 'closed' && currentColumn && isCompletedColumn(currentColumn)) {
+    return { handled: true, skipped: true, reason: 'already_completed' };
+  }
+  if (action === 'reopened' && currentColumn && !isCompletedColumn(currentColumn)) {
+    return { handled: true, skipped: true, reason: 'already_active' };
+  }
+
   const targetColumn = action === 'closed' ? 'Done' : 'To Do';
   const updated = await moveTaskToColumn(taskId, targetColumn);
   return { handled: true, task_id: taskId, column: targetColumn, task: updated };
@@ -277,6 +328,8 @@ module.exports = {
   issueUrl,
   enrichTask,
   buildIssueBody,
+  issueStateForColumnChange,
+  syncIssueForColumnChange,
   createIssueForTask,
   linkIssueToTask,
   unlinkIssue,

@@ -17,6 +17,7 @@ const {
   createIssueForTask,
   linkIssueToTask,
   unlinkIssue,
+  syncIssueForColumnChange,
 } = require('../services/github');
 
 const router = express.Router();
@@ -364,6 +365,9 @@ router.patch('/tasks/:id/move', asyncHandler(async (req, res) => {
       });
       if (!isCompletedColumn(fromName) && isCompletedColumn(toName)) {
         fireAndForget(() => notifyCompleted(updatedTask.id, toName));
+      }
+      if (oldColumn !== column_id) {
+        fireAndForget(() => syncIssueForColumnChange(updatedTask, fromName, toName));
       }
     }
 
