@@ -53,4 +53,5 @@ jobs:
             -e "mc_google_client_secret=${{ secrets.MC_GOOGLE_CLIENT_SECRET }}" \
             -e "mc_google_refresh_token=${{ secrets.MC_GOOGLE_REFRESH_TOKEN }}" \
             -e "mc_github_token=${{ secrets.MC_GITHUB_TOKEN }}" \
-            -e "mc_github_webhook_secret=${{ secrets.MC_GITHUB_WEBHOOK_SECRET }}"
+            -e "mc_github_webhook_secret=${{ secrets.MC_GITHUB_WEBHOOK_SECRET }}" \
+            -e "mc_github_default_repo=erwinpangilinan-dot/kanban_dashboard"
