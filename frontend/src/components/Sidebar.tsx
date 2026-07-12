@@ -1,4 +1,4 @@
-import { LayoutDashboard, Plus, Rocket } from 'lucide-react';
+import { LayoutDashboard, Mail, Plus, Rocket } from 'lucide-react';
 import type { AppView, Project } from '../types';
 
 interface SidebarProps {
@@ -6,6 +6,7 @@ interface SidebarProps {
   view: AppView;
   activeProjectId: string | null;
   onSelectOverview: () => void;
+  onSelectWorkspace: () => void;
   onSelectProject: (id: string) => void;
   onCreateProject: () => void;
 }
@@ -15,6 +16,7 @@ export function Sidebar({
   view,
   activeProjectId,
   onSelectOverview,
+  onSelectWorkspace,
   onSelectProject,
   onCreateProject,
 }: SidebarProps) {
@@ -42,6 +44,19 @@ export function Sidebar({
         >
           <LayoutDashboard className="h-4 w-4 shrink-0" />
           Overview
+        </button>
+
+        <button
+          type="button"
+          onClick={onSelectWorkspace}
+          className={`mb-3 flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+            view === 'workspace'
+              ? 'bg-accent/15 font-medium text-accent-hover'
+              : 'text-gray-400 hover:bg-surface-overlay hover:text-gray-200'
+          }`}
+        >
+          <Mail className="h-4 w-4 shrink-0" />
+          Workspace
         </button>
 
         <div className="mb-2 flex items-center justify-between px-2">

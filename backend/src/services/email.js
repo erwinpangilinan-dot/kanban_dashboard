@@ -67,13 +67,14 @@ async function startTls(socket, host) {
   });
 }
 
-function buildMessage({ from, to, subject, text, html }) {
+function buildMessage({ from, to, subject, text, html, inReplyTo }) {
   const headers = [
     `From: ${from}`,
     `To: ${to.join(', ')}`,
     `Subject: ${subject}`,
     'MIME-Version: 1.0',
   ];
+  if (inReplyTo) headers.push(`In-Reply-To: ${inReplyTo}`);
 
   if (html) {
     const boundary = 'mc-digest';

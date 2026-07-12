@@ -10,6 +10,7 @@ A full-stack Kanban project dashboard for tracking tasks across projects. Built 
 - **Task details** — priority, assignee, due dates, descriptions
 - **Fully containerized** — one command deploys Postgres + API + UI
 - **Dark mode** Mission Control theme
+- **Workspace tab** — Gmail inbox (read/reply) and Google Calendar (view/create/delete) in the dashboard
 
 ### Metrics definitions
 
@@ -253,6 +254,18 @@ curl -s -H "Authorization: Bearer $AUTH_API_TOKEN" http://10.10.50.6/api/ops/sta
 Reports whether auth, Telegram, email digest, GitHub, and `MISSION_CONTROL_PUBLIC_URL` are configured, plus linked issue counts.
 
 Optional LAN HTTPS: set `mc_enable_tls: true` in Ansible vars (self-signed cert on port 443).
+
+### Workspace (email + calendar)
+
+Sidebar → **Workspace** opens Gmail and Google Calendar tabs when Google OAuth is configured:
+
+```bash
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+GOOGLE_REFRESH_TOKEN=...   # from MCP auth + npm run sync:google-token --prefix backend
+```
+
+API routes (auth required): `/api/workspace/email/*`, `/api/workspace/calendar/*`.
 
 ---
 

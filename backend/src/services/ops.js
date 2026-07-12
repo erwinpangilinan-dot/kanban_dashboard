@@ -2,6 +2,7 @@ const { isAuthEnabled } = require('../middleware/auth');
 const telegram = require('./notify');
 const digest = require('./digest');
 const github = require('./github');
+const { isConfigured: isGoogleConfigured } = require('./google-auth');
 const db = require('../db');
 
 function publicUrl() {
@@ -38,6 +39,11 @@ function getOpsStatus() {
       default_repo: github.defaultRepo(),
       auto_create: github.autoCreateEnabled(),
       webhook_configured: Boolean(process.env.GITHUB_WEBHOOK_SECRET),
+    },
+    workspace: {
+      enabled: isGoogleConfigured(),
+      email: isGoogleConfigured(),
+      calendar: isGoogleConfigured(),
     },
   };
 }

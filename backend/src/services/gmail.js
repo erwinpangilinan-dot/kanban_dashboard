@@ -1,16 +1,12 @@
 const { buildMessage } = require('./email');
+const { isConfigured, getAccessToken, accountEmail } = require('./google-auth');
 
 function isEnabled() {
-  return Boolean(
-    process.env.GOOGLE_CLIENT_ID
-    && process.env.GOOGLE_CLIENT_SECRET
-    && process.env.GOOGLE_REFRESH_TOKEN
-    && process.env.EMAIL_TO
-  );
+  return isConfigured() && Boolean(process.env.EMAIL_TO);
 }
 
 function fromAddress() {
-  return process.env.EMAIL_FROM || process.env.GOOGLE_SEND_AS || 'me';
+  return accountEmail() || 'me';
 }
 
 function recipients() {
@@ -23,37 +19,6 @@ function toBase64Url(value) {
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=+$/, '');
-}
-
-let tokenCache = null;
-
-async function getAccessToken() {
-  if (tokenCache && tokenCache.expiresAt > Date.now() + 60_000) {
-    return tokenCache.token;
-  }
-
-  const res = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: process.env.GOOGLE_CLIENT_ID,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET,
-      refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
-      grant_type: 'refresh_token',
-    }),
-  });
-
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Google token refresh failed (${res.status}): ${body}`);
-  }
-
-  const data = await res.json();
-  tokenCache = {
-    token: data.access_token,
-    expiresAt: Date.now() + (data.expires_in || 3600) * 1000,
-  };
-  return tokenCache.token;
 }
 
 async function sendMail({ subject, text, html }) {

@@ -135,4 +135,57 @@ export interface OverviewData {
   activity: ActivityItem[];
 }
 
-export type AppView = 'overview' | 'board';
+export type AppView = 'overview' | 'board' | 'workspace';
+
+export type WorkspaceTab = 'email' | 'calendar';
+
+export interface WorkspaceStatus {
+  enabled: boolean;
+  email: boolean;
+  calendar: boolean;
+  account: string | null;
+}
+
+export interface EmailSummary {
+  id: string;
+  thread_id: string;
+  subject: string;
+  from: string;
+  to: string;
+  date: string;
+  snippet: string;
+  unread: boolean;
+}
+
+export interface EmailMessage extends EmailSummary {
+  body: string;
+}
+
+export interface CalendarEvent {
+  id: string;
+  summary: string;
+  description: string;
+  location: string;
+  start: string;
+  end: string;
+  html_link: string | null;
+  all_day: boolean;
+  status: string;
+}
+
+export interface CreateCalendarEventInput {
+  summary: string;
+  description?: string;
+  location?: string;
+  start: string;
+  end: string;
+  all_day?: boolean;
+}
+
+export interface SendEmailInput {
+  to: string;
+  subject: string;
+  body: string;
+  thread_id?: string;
+  in_reply_to?: string;
+}

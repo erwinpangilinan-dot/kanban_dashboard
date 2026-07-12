@@ -8,6 +8,7 @@ import { OverviewPage } from './components/OverviewPage';
 import { ProjectModal } from './components/ProjectModal';
 import { Sidebar } from './components/Sidebar';
 import { TaskModal } from './components/TaskModal';
+import { WorkspacePage } from './components/WorkspacePage';
 import { useAutoRefresh } from './hooks/useAutoRefresh';
 import { getAutoRefreshEnabled, setAutoRefreshEnabled } from './lib/autoRefresh';
 import { EMPTY_FILTERS, collectAssignees, filterColumns } from './lib/boardFilters';
@@ -32,6 +33,7 @@ export default function App() {
   const [autoRefresh, setAutoRefresh] = useState(getAutoRefreshEnabled);
   const [boardFilters, setBoardFilters] = useState(EMPTY_FILTERS);
   const [exporting, setExporting] = useState(false);
+  const [workspaceRefresh, setWorkspaceRefresh] = useState(0);
 
   useEffect(() => {
     setUnauthorizedHandler(() => {
@@ -150,6 +152,10 @@ export default function App() {
     setView('overview');
   }
 
+  function handleSelectWorkspace() {
+    setView('workspace');
+  }
+
   function handleSelectProject(projectId: string) {
     setBoardFilters(EMPTY_FILTERS);
     setActiveProjectId(projectId);
@@ -159,6 +165,8 @@ export default function App() {
   function handleRefresh() {
     if (view === 'overview') {
       loadOverview();
+    } else if (view === 'workspace') {
+      setWorkspaceRefresh((n) => n + 1);
     } else if (activeProjectId) {
       loadBoard(activeProjectId);
     }
@@ -271,7 +279,7 @@ export default function App() {
   const assignees = boardData ? collectAssignees(boardData.columns) : [];
 
   const showSpinner =
-    loading && (view === 'overview' ? !overviewData : !boardData);
+    loading && (view === 'overview' ? !overviewData : view === 'board' ? !boardData : false);
 
   if (authState === 'loading') {
     return (
@@ -292,6 +300,7 @@ export default function App() {
         view={view}
         activeProjectId={activeProjectId}
         onSelectOverview={handleSelectOverview}
+        onSelectWorkspace={handleSelectWorkspace}
         onSelectProject={handleSelectProject}
         onCreateProject={() => setShowProjectModal(true)}
       />
@@ -330,6 +339,8 @@ export default function App() {
               data={overviewData}
               onSelectProject={handleSelectProject}
             />
+          ) : view === 'workspace' ? (
+            <WorkspacePage refreshToken={workspaceRefresh} />
           ) : view === 'board' && boardData ? (
             <>
               <BoardFiltersBar

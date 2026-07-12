@@ -1,13 +1,19 @@
 import { clearToken, getToken, setToken } from '../lib/auth';
 import type {
   BoardData,
+  CalendarEvent,
+  CreateCalendarEventInput,
   CreateTaskInput,
+  EmailMessage,
+  EmailSummary,
   GitHubStatus,
   Label,
   OverviewData,
   Project,
+  SendEmailInput,
   Task,
   UpdateTaskInput,
+  WorkspaceStatus,
 } from '../types';
 
 const BASE = '/api';
@@ -96,6 +102,31 @@ export const api = {
     }),
 
   getOverview: () => request<OverviewData>('/overview'),
+
+  getWorkspaceStatus: () => request<WorkspaceStatus>('/workspace/status'),
+
+  getEmailMessages: (q = 'in:inbox', max = 25) =>
+    request<EmailSummary[]>(`/workspace/email/messages?q=${encodeURIComponent(q)}&max=${max}`),
+
+  getEmailMessage: (id: string) => request<EmailMessage>(`/workspace/email/messages/${id}`),
+
+  sendEmail: (data: SendEmailInput) =>
+    request<EmailMessage>('/workspace/email/send', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getCalendarEvents: (days = 14) =>
+    request<CalendarEvent[]>(`/workspace/calendar/events?days=${days}`),
+
+  createCalendarEvent: (data: CreateCalendarEventInput) =>
+    request<CalendarEvent>('/workspace/calendar/events', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  deleteCalendarEvent: (id: string) =>
+    request<void>(`/workspace/calendar/events/${id}`, { method: 'DELETE' }),
 
   getGitHubStatus: () => request<GitHubStatus>('/github/status'),
 

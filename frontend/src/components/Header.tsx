@@ -29,11 +29,18 @@ export function Header({
   onExport,
   exporting = false,
 }: HeaderProps) {
-  const title = view === 'overview' ? 'Overview' : (project?.name ?? 'Board');
+  const title =
+    view === 'overview'
+      ? 'Overview'
+      : view === 'workspace'
+        ? 'Workspace'
+        : (project?.name ?? 'Board');
   const subtitle =
     view === 'overview'
       ? 'Mission status across all projects'
-      : project?.description;
+      : view === 'workspace'
+        ? 'Email and calendar in one place'
+        : project?.description;
 
   return (
     <header className="flex items-center justify-between border-b border-surface-border bg-surface-raised/80 px-6 py-4 backdrop-blur-sm">
