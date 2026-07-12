@@ -116,6 +116,9 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
+  deleteEmailMessage: (id: string) =>
+    request<void>(`/workspace/email/messages/${id}`, { method: 'DELETE' }),
+
   getCalendarEvents: (days = 14) =>
     request<CalendarEvent[]>(`/workspace/calendar/events?days=${days}`),
 

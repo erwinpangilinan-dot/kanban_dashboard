@@ -103,9 +103,14 @@ async function sendMessage({ to, subject, body, threadId, inReplyTo }) {
   return getMessage(sent.id);
 }
 
+async function deleteMessage(id) {
+  await googleFetch(`${GMAIL}/messages/${id}/trash`, { method: 'POST' });
+}
+
 module.exports = {
   listMessages,
   getMessage,
   sendMessage,
+  deleteMessage,
   summarizeMessage,
 };

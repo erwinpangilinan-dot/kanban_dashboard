@@ -62,6 +62,7 @@ function EmailPanel({ refreshToken }: { refreshToken: number }) {
   const [replyOpen, setReplyOpen] = useState(false);
   const [replyBody, setReplyBody] = useState('');
   const [sending, setSending] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadMessages = useCallback(async () => {
@@ -116,6 +117,24 @@ function EmailPanel({ refreshToken }: { refreshToken: number }) {
       setError(err instanceof Error ? err.message : 'Failed to send reply');
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!detail) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      await api.deleteEmailMessage(detail.id);
+      const remaining = messages.filter((m) => m.id !== detail.id);
+      setMessages(remaining);
+      setSelectedId(remaining[0]?.id ?? null);
+      setDetail(null);
+      setReplyOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete message');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -181,14 +200,25 @@ function EmailPanel({ refreshToken }: { refreshToken: number }) {
                 <p className="mt-1 text-sm text-gray-400">From: {detail.from}</p>
                 <p className="text-xs text-gray-500">{detail.date}</p>
               </div>
-              <button
-                type="button"
-                onClick={() => setReplyOpen((v) => !v)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-surface-border px-3 py-1.5 text-xs font-medium text-gray-300 hover:border-accent/40 hover:text-accent-hover"
-              >
-                <Reply className="h-3.5 w-3.5" />
-                Reply
-              </button>
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setReplyOpen((v) => !v)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-surface-border px-3 py-1.5 text-xs font-medium text-gray-300 hover:border-accent/40 hover:text-accent-hover"
+                >
+                  <Reply className="h-3.5 w-3.5" />
+                  Reply
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="rounded-lg border border-surface-border p-2 text-gray-400 hover:border-red-500/40 hover:text-red-300 disabled:opacity-50"
+                  aria-label="Delete message"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
             </div>
             <div className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-gray-300">
               {detail.body || detail.snippet}

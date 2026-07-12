@@ -50,6 +50,11 @@ router.post('/email/send', asyncHandler(async (req, res) => {
   }));
 }));
 
+router.delete('/email/messages/:id', asyncHandler(async (req, res) => {
+  await workspaceEmail.deleteMessage(req.params.id);
+  res.status(204).send();
+}));
+
 router.get('/calendar/events', asyncHandler(async (req, res) => {
   const days = Math.min(Number(req.query.days) || 14, 90);
   const max = Math.min(Number(req.query.max) || 50, 100);
