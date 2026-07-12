@@ -75,6 +75,10 @@ jobs:
         run: npm run verify:ops
         working-directory: backend
 
+      - name: Verify email assistant helpers
+        run: npm run verify:email-assistant
+        working-directory: backend
+
       - name: Install frontend dependencies
         run: npm ci
         working-directory: frontend

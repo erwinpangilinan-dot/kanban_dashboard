@@ -3,6 +3,7 @@ const telegram = require('./notify');
 const digest = require('./digest');
 const github = require('./github');
 const { isConfigured: isGoogleConfigured } = require('./google-auth');
+const { isConfigured: isOllamaConfigured } = require('./ollama');
 const db = require('../db');
 
 function publicUrl() {
@@ -44,6 +45,7 @@ function getOpsStatus() {
       enabled: isGoogleConfigured(),
       email: isGoogleConfigured(),
       calendar: isGoogleConfigured(),
+      assistant: isGoogleConfigured() && isOllamaConfigured(),
     },
   };
 }

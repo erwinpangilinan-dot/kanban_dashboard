@@ -267,6 +267,27 @@ GOOGLE_REFRESH_TOKEN=...   # from MCP auth + npm run sync:google-token --prefix 
 
 API routes (auth required): `/api/workspace/email/*`, `/api/workspace/calendar/*`.
 
+### Workspace email assistant (Ollama)
+
+When Ollama is running locally, the assistant reviews inbox mail and suggests actions — **always with your approval** before send or delete:
+
+```bash
+OLLAMA_BASE_URL=http://host.docker.internal:11435   # Docker: socat proxy → host Ollama
+OLLAMA_MODEL=qwen3.5:9b
+```
+
+Docker Compose includes an `ollama-proxy` service because Ollama listens on `127.0.0.1` only. The proxy forwards port **11435** on the host to Ollama on **11434**.
+
+| Action | Behavior |
+|--------|----------|
+| **Review** | Classify one open message (important, ad, newsletter, etc.) |
+| **Scan inbox** | Review up to 5 inbox messages; queue those needing action |
+| **Auto-cleanup ads** | Review up to 25 messages; trash detected ads immediately (no per-email approval) |
+| **Reply** | Assistant drafts a reply → you edit → **Approve & send** |
+| **Delete** | Ads flagged → **Approve delete** or **Keep email** |
+
+Never auto-sends or auto-deletes without explicit approval in the UI.
+
 ---
 
 ## CI/CD

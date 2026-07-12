@@ -143,6 +143,7 @@ export interface WorkspaceStatus {
   enabled: boolean;
   email: boolean;
   calendar: boolean;
+  assistant: boolean;
   account: string | null;
 }
 
@@ -188,4 +189,54 @@ export interface SendEmailInput {
   body: string;
   thread_id?: string;
   in_reply_to?: string;
+}
+
+export type EmailAssistantCategory =
+  | 'important'
+  | 'advertisement'
+  | 'newsletter'
+  | 'notification'
+  | 'other';
+
+export interface EmailDraftReply {
+  subject: string;
+  body: string;
+}
+
+export interface EmailAssistantReview {
+  message_id: string;
+  category: EmailAssistantCategory;
+  needs_reply: boolean;
+  should_delete: boolean;
+  summary: string;
+  reasoning: string;
+  draft_reply: EmailDraftReply | null;
+  subject?: string;
+  from?: string;
+  error?: string;
+}
+
+export interface EmailAssistantScanResult {
+  reviews: EmailAssistantReview[];
+  scanned: number;
+}
+
+export interface EmailCleanupDeleted {
+  message_id: string;
+  subject: string;
+  from: string;
+}
+
+export interface EmailCleanupError {
+  message_id: string;
+  subject: string;
+  error: string;
+}
+
+export interface EmailAssistantCleanupResult {
+  scanned: number;
+  deleted: number;
+  skipped: number;
+  deleted_messages: EmailCleanupDeleted[];
+  errors: EmailCleanupError[];
 }

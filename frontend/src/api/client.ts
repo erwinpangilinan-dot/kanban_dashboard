@@ -6,6 +6,9 @@ import type {
   CreateTaskInput,
   EmailMessage,
   EmailSummary,
+  EmailAssistantReview,
+  EmailAssistantScanResult,
+  EmailAssistantCleanupResult,
   GitHubStatus,
   Label,
   OverviewData,
@@ -118,6 +121,21 @@ export const api = {
 
   deleteEmailMessage: (id: string) =>
     request<void>(`/workspace/email/messages/${id}`, { method: 'DELETE' }),
+
+  reviewEmail: (id: string) =>
+    request<EmailAssistantReview>(`/workspace/email/assistant/review/${id}`, { method: 'POST' }),
+
+  scanEmailInbox: (q = 'in:inbox', max = 5) =>
+    request<EmailAssistantScanResult>('/workspace/email/assistant/scan', {
+      method: 'POST',
+      body: JSON.stringify({ q, max }),
+    }),
+
+  cleanupEmailInbox: (q = 'in:inbox', max = 25) =>
+    request<EmailAssistantCleanupResult>('/workspace/email/assistant/cleanup', {
+      method: 'POST',
+      body: JSON.stringify({ q, max }),
+    }),
 
   getCalendarEvents: (days = 14) =>
     request<CalendarEvent[]>(`/workspace/calendar/events?days=${days}`),

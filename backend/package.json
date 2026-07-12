@@ -13,6 +13,7 @@
     "verify:github": "node scripts/verify-github.js",
     "verify:labels": "node scripts/verify-labels.js",
     "verify:ops": "node scripts/verify-ops.js",
+    "verify:email-assistant": "node scripts/verify-email-assistant.js",
     "sync:google-token": "node scripts/sync-google-token.js",
     "send:digest": "node scripts/send-digest.js"
   },

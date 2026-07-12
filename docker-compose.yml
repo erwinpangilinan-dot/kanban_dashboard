@@ -47,6 +47,9 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_REFRESH_TOKEN: ${GOOGLE_REFRESH_TOKEN:-}
       GOOGLE_SEND_AS: ${GOOGLE_SEND_AS:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11435}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-}
+      OLLAMA_TIMEOUT_MS: ${OLLAMA_TIMEOUT_MS:-120000}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
       GITHUB_DEFAULT_REPO: ${GITHUB_DEFAULT_REPO:-}
@@ -55,6 +58,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     expose:
       - "3001"
 
@@ -68,6 +73,14 @@ services:
       - "80:80"
     depends_on:
       - api
+
+  # ponytail: Ollama binds 127.0.0.1 on the host; expose via socat for Docker API access
+  ollama-proxy:
+    image: alpine/socat
+    container_name: mission_control_ollama_proxy
+    restart: unless-stopped
+    network_mode: host
+    command: TCP-LISTEN:11435,fork,reuseaddr TCP:127.0.0.1:11434
 
 volumes:
   postgres_data:
