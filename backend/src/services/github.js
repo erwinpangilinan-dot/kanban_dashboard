@@ -101,6 +101,10 @@ async function syncIssueForColumnChange(task, fromColumn, toColumn) {
   }
 }
 
+async function ping() {
+  return githubApi('/rate_limit');
+}
+
 async function githubApi(path, { method = 'GET', body } = {}) {
   const res = await fetch(`https://api.github.com${path}`, {
     method,
@@ -335,4 +339,5 @@ module.exports = {
   unlinkIssue,
   verifyWebhookSignature,
   handleWebhookEvent,
+  ping,
 };

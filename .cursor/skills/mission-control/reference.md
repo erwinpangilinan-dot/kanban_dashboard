@@ -4,7 +4,7 @@
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `MISSION_CONTROL_API_URL` | `http://localhost/api` | API base URL (`http://localhost:3001/api` for `npm run dev`) |
+| `MISSION_CONTROL_API_URL` | `http://10.10.50.6/api` | Production API (source of truth). Use `http://localhost/api` only for local dev experiments. |
 
 ## REST API (underlying)
 
@@ -74,14 +74,14 @@ Injects current overview data and asks for a standup write-up.
 ## Setup in Cursor
 
 1. Ensure `.cursor/mcp.json` exists in the repo root.
-2. Install MCP deps once: `npm install --prefix mcp`
-3. Restart Cursor or reload MCP servers in settings.
-4. Start dashboard: `docker compose up -d`
+2. Set `MISSION_CONTROL_API_URL=http://10.10.50.6/api` in `.env` (production = source of truth).
+3. Install MCP deps once: `npm install --prefix mcp`
+4. Restart Cursor or reload MCP servers in settings.
 
 ## Troubleshooting
 
 | Symptom | Fix |
 |---------|-----|
-| MCP tools fail | Run `health_check`; start `docker compose up -d` |
-| 502 from API | Wait for `mission_control_api` container to be healthy |
-| Wrong port | Set `MISSION_CONTROL_API_URL` in `.cursor/mcp.json` env |
+| MCP tools fail | Run `health_check`; confirm production API is up at `10.10.50.6` |
+| Local UI ≠ MCP status | Expected — local Docker has its own DB; MCP reads production |
+| Wrong API target | Set `MISSION_CONTROL_API_URL=http://10.10.50.6/api` in `.env` and restart Cursor |

@@ -115,6 +115,7 @@ router.post('/projects', asyncHandler(async (req, res) => {
 }));
 
 router.use(require('./overview'));
+router.use('/ops', require('./ops'));
 
 router.get('/github/status', asyncHandler(async (_req, res) => {
   res.json({

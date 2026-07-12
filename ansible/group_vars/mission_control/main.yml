@@ -3,6 +3,10 @@ mc_repo_url: https://github.com/erwinpangilinan-dot/kanban_dashboard.git
 mc_deploy_ref: main
 mc_install_dir: /opt/mission-control
 mc_app_port: 80
+mc_public_url: "{{ 'https' if mc_enable_tls else 'http' }}://10.10.50.6"
+mc_enable_tls: false
+mc_tls_port: 443
+mc_tls_cn: "10.10.50.6"
 
 # ── Database (docker internal network) ──
 mc_postgres_user: kanban

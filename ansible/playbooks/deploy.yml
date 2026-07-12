@@ -13,6 +13,16 @@
           Set mc_postgres_password via vault.yml or -e.
           See ansible/group_vars/mission_control/vault.yml.example
 
+    - name: Require production auth secrets
+      ansible.builtin.assert:
+        that:
+          - mc_jwt_secret | length > 0
+          - mc_auth_password | length > 0
+          - mc_auth_api_token | length > 0
+        fail_msg: >-
+          Set mc_jwt_secret, mc_auth_password, and mc_auth_api_token via vault.yml
+          or GitHub production environment secrets.
+
     - name: Require GitHub token when default repo is configured
       ansible.builtin.assert:
         that:

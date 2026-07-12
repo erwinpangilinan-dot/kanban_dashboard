@@ -38,6 +38,15 @@ async function seed() {
 
   const sampleTasks = [
     // Backlog
+    {
+      column: 0,
+      title: 'Ops & production config',
+      description:
+        'Configure optional production integrations and hardening: Telegram, email digest, HTTPS, GitHub sync verification, auth/MCP tokens.',
+      priority: 'medium',
+      assignee: null,
+      due: '2026-08-01',
+    },
     { column: 0, title: 'Research competitor dashboards', priority: 'low', assignee: 'Jordan K.', due: null },
     {
       column: 0,
@@ -126,25 +135,6 @@ async function seed() {
         task.due,
         i,
       ]
-    );
-  }
-
-  const { rows: secondProject } = await db.query(
-    `INSERT INTO projects (name, description, color)
-     VALUES ($1, $2, $3)
-     RETURNING id`,
-    ['Infrastructure', 'DevOps and platform reliability initiatives.', '#0ea5e9']
-  );
-
-  const { rows: secondBoard } = await db.query(
-    `INSERT INTO boards (project_id, name) VALUES ($1, $2) RETURNING id`,
-    [secondProject[0].id, 'Ops Board']
-  );
-
-  for (let i = 0; i < DEFAULT_COLUMNS.length; i++) {
-    await db.query(
-      `INSERT INTO columns (board_id, name, position) VALUES ($1, $2, $3)`,
-      [secondBoard[0].id, DEFAULT_COLUMNS[i], i]
     );
   }
 

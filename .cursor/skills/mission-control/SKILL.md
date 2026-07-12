@@ -14,15 +14,12 @@ Use the **mission-control** MCP server to read and update the team's Mission Con
 
 ## Prerequisites
 
-1. Mission Control stack must be running:
-   ```bash
-   docker compose up -d
-   # or: npm run dev
-   ```
-2. MCP server is configured in `.cursor/mcp.json` (stdio → `mcp/run.sh`).
-3. API default: `http://localhost/api` (Docker). Dev mode: `http://localhost:3001/api`.
+1. MCP server is configured in `.cursor/mcp.json` (stdio → `mcp/run.sh`).
+2. **Production is the source of truth** for status, standups, and task mutations.
+   Set in `.env`: `MISSION_CONTROL_API_URL=http://10.10.50.6/api`
+3. Local Docker (`http://localhost`) is for development only — separate database, not synced with production.
 
-Always call `health_check` first if unsure the stack is up.
+Always call `health_check` first if unsure the API is reachable.
 
 ## Domain Rules
 
@@ -110,4 +107,5 @@ When reporting status to the user:
 ## Additional Resources
 
 - MCP tool schemas: [reference.md](reference.md)
-- Dashboard UI: http://localhost (Docker) or http://localhost:5173 (dev)
+- **Status dashboard (production):** http://10.10.50.6
+- **Local dev UI:** http://localhost (Docker) or http://localhost:5173 (Vite)

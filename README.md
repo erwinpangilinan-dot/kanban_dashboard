@@ -39,6 +39,18 @@ docker compose logs -f    # view logs
 docker compose down       # stop everything
 ```
 
+### Production vs local
+
+| | Production | Local Docker |
+|---|---|---|
+| **URL** | http://10.10.50.6 | http://localhost |
+| **Purpose** | Live dashboard, source of truth | Development only |
+| **Database** | Server Postgres | Local Docker volume (not synced) |
+| **MCP / Cursor** | `MISSION_CONTROL_API_URL=http://10.10.50.6/api` | Do not use for status |
+
+Local and production have **separate databases**. Task changes on one do not appear on the other.
+Use production for real status; use local only to test code changes.
+
 ---
 
 ## Local Development
@@ -230,6 +242,18 @@ AUTH_API_TOKEN=token-for-mcp-and-scripts
 - **MCP / scripts:** send `Authorization: Bearer $AUTH_API_TOKEN`
 - **Public routes:** `/api/health`, `/api/auth/status`, `/api/auth/login`, `/api/webhooks/github`
 
+### Production ops status
+
+After deploy, Ansible verifies `GET /api/ops/status` (requires auth). Check manually:
+
+```bash
+curl -s -H "Authorization: Bearer $AUTH_API_TOKEN" http://10.10.50.6/api/ops/status | jq
+```
+
+Reports whether auth, Telegram, email digest, GitHub, and `MISSION_CONTROL_PUBLIC_URL` are configured, plus linked issue counts.
+
+Optional LAN HTTPS: set `mc_enable_tls: true` in Ansible vars (self-signed cert on port 443).
+
 ---
 
 ## CI/CD
@@ -238,7 +262,7 @@ GitHub Actions runs on every push and pull request to `main`:
 
 | Job | Checks |
 |-----|--------|
-| **test-and-build** | Postgres migrations, API smoke test, frontend typecheck/build, MCP verify |
+| **test-and-build** | Postgres migrations, API smoke test, ops verify, frontend typecheck/build, MCP verify |
 | **docker** | `docker compose build` for api + web images |
 | **deploy** | After CI passes on `main`, deploys to production via Ansible (manual dispatch also available) |
 

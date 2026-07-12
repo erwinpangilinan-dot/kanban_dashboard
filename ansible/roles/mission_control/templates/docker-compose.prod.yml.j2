@@ -13,3 +13,9 @@ services:
   web:
     ports:
       - "{{ mc_app_port }}:80"
+{% if mc_enable_tls %}
+      - "{{ mc_tls_port }}:443"
+    volumes:
+      - "{{ mc_install_dir }}/nginx.prod.conf:/etc/nginx/conf.d/default.conf:ro"
+      - "{{ mc_install_dir }}/certs:/etc/nginx/certs:ro"
+{% endif %}

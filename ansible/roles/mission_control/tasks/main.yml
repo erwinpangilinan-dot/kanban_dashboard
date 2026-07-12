@@ -92,6 +92,33 @@
     group: "{{ ansible_user }}"
     mode: "0644"
 
+- name: Render production nginx config
+  ansible.builtin.template:
+    src: nginx.prod.conf.j2
+    dest: "{{ mc_install_dir }}/nginx.prod.conf"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+
+- name: Ensure TLS certificate directory exists
+  ansible.builtin.file:
+    path: "{{ mc_install_dir }}/certs"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0750"
+  when: mc_enable_tls
+
+- name: Generate self-signed TLS certificate
+  ansible.builtin.command:
+    cmd: >-
+      openssl req -x509 -nodes -days 825 -newkey rsa:2048
+      -keyout {{ mc_install_dir }}/certs/privkey.pem
+      -out {{ mc_install_dir }}/certs/fullchain.pem
+      -subj /CN={{ mc_tls_cn }}
+    creates: "{{ mc_install_dir }}/certs/fullchain.pem"
+  when: mc_enable_tls
+
 - name: Stop existing stack before rebuild
   ansible.builtin.command:
     cmd: docker compose -f docker-compose.yml -f docker-compose.prod.yml down --remove-orphans
@@ -137,6 +164,45 @@
       Ensure MC_GITHUB_TOKEN is set in production secrets and redeploy.
   when: mc_github_default_repo | length > 0
 
+- name: Verify production ops status
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ mc_app_port }}/api/ops/status"
+    headers:
+      Authorization: "Bearer {{ mc_auth_api_token }}"
+    status_code: 200
+    return_content: true
+  register: mc_ops
+  retries: 6
+  delay: 5
+  until: mc_ops.status == 200
+  when: mc_auth_api_token | length > 0
+
+- name: Assert production auth is enabled
+  ansible.builtin.assert:
+    that:
+      - mc_ops.json.auth.enabled
+      - mc_ops.json.auth.api_token_configured
+      - mc_ops.json.auth.password_configured
+    fail_msg: "Auth is not fully configured on the running API."
+  when: mc_auth_api_token | length > 0
+
+- name: Assert GitHub integration is ready
+  ansible.builtin.assert:
+    that:
+      - mc_ops.json.github.enabled
+      - mc_ops.json.github.webhook_configured
+      - mc_ops.json.github.default_repo | length > 0
+    fail_msg: "GitHub integration is not fully configured on the running API."
+  when:
+    - mc_auth_api_token | length > 0
+    - mc_github_default_repo | length > 0
+
 - name: Show deploy result
   ansible.builtin.debug:
-    msg: "Mission Control deployed at http://{{ ansible_host }}:{{ mc_app_port }} — {{ mc_health.json }}"
+    msg: >-
+      Mission Control deployed at {{ mc_public_url }}
+      — auth={{ mc_ops.json.auth.enabled | default('n/a') }},
+      telegram={{ mc_ops.json.telegram.enabled | default('n/a') }},
+      digest={{ mc_ops.json.email_digest.enabled | default('n/a') }},
+      github={{ mc_ops.json.github.enabled | default('n/a') }},
+      linked_issues={{ mc_ops.json.github.sync.linked_tasks | default('n/a') }}
