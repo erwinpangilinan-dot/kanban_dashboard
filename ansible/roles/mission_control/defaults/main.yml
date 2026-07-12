@@ -30,7 +30,7 @@ mc_google_client_secret: ""
 mc_google_refresh_token: ""
 mc_google_send_as: ""
 
-mc_ollama_base_url: "http://host.docker.internal:11434"
+mc_ollama_base_url: "http://10.10.1.55:11435"
 mc_ollama_model: ""
 mc_ollama_timeout_ms: "120000"
 

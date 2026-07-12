@@ -278,6 +278,16 @@ OLLAMA_MODEL=qwen3.5:9b
 
 Docker Compose includes an `ollama-proxy` service because Ollama listens on `127.0.0.1` only. The proxy forwards port **11435** on the host to Ollama on **11434**.
 
+**Production (shared dev Ollama):** Point prod at the dev server's LAN proxy — do not install Ollama on `10.10.50.6`:
+
+```bash
+# GitHub production secrets
+MC_OLLAMA_BASE_URL=http://10.10.1.55:11435
+MC_OLLAMA_MODEL=qwen3.5:9b
+```
+
+Prod API container calls dev Ollama over LAN. Keep Ollama + `ollama-proxy` running on the dev machine. See Mission Control ticket #30.
+
 | Action | Behavior |
 |--------|----------|
 | **Review** | Classify one open message (important, ad, newsletter, etc.) |
