@@ -108,7 +108,9 @@ function AssistantReviewCard({
           <p className="text-sm text-orange-100">
             {review.category === 'notification'
               ? 'This looks like an automated system notification. Delete it?'
-              : 'This looks like an advertisement. Delete it?'}
+              : review.category === 'newsletter'
+                ? 'This looks like a newsletter. Delete it?'
+                : 'This looks like an advertisement. Delete it?'}
           </p>
           <div className="mt-2 flex gap-2">
             <button
@@ -440,7 +442,7 @@ function EmailPanel({
             <p className="text-xs text-gray-500">Reviewing up to 5 emails — may take 15–60 seconds.</p>
           )}
           {cleaning && (
-            <p className="text-xs text-gray-500">Scanning up to 25 emails and trashing junk (ads + system notifications) — may take 1–3 minutes.</p>
+            <p className="text-xs text-gray-500">Scanning up to 25 emails and trashing junk (ads, newsletters, system notifications) — may take 1–3 minutes.</p>
           )}
           {cleanupResult && !cleaning && (
             <div className="rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-xs text-orange-100">

@@ -292,7 +292,7 @@ Prod API container calls dev Ollama over LAN. Keep Ollama + `ollama-proxy` runni
 |--------|----------|
 | **Review** | Classify one open message (important, ad, newsletter, etc.) |
 | **Scan inbox** | Review up to 5 inbox messages; queue those needing action |
-| **Auto-cleanup junk** | Review up to 25 messages; trash ads and automated system notifications (no per-email approval) |
+| **Auto-cleanup junk** | Review up to 25 messages; trash ads, newsletters, and automated system notifications (no per-email approval) |
 | **Reply** | Assistant drafts a reply → you edit → **Approve & send** |
 | **Delete** | Ads flagged → **Approve delete** or **Keep email** |
 

@@ -2,7 +2,7 @@ const ollama = require('./ollama');
 const workspaceEmail = require('./workspace-email');
 
 const CATEGORIES = ['important', 'advertisement', 'newsletter', 'notification', 'other'];
-const CLEANUP_CATEGORIES = new Set(['advertisement', 'notification']);
+const CLEANUP_CATEGORIES = new Set(['advertisement', 'notification', 'newsletter']);
 
 const SYSTEM_PROMPT = `You are a personal email assistant. Analyze the email and respond ONLY with valid JSON (no markdown fences):
 {
@@ -17,10 +17,10 @@ const SYSTEM_PROMPT = `You are a personal email assistant. Analyze the email and
 Rules:
 - important: personal, work, bills, appointments, actionable requests
 - advertisement: marketing promos, sales spam, unsolicited ads
-- newsletter: subscribed digests / content roundups (not pure ads)
+- newsletter: subscribed digests, content roundups, mailing-list editions (not pure ads)
 - notification: automated system alerts, app digests, platform status updates
 - needs_reply=true only when a thoughtful human reply is clearly expected
-- should_delete=true for advertisement/promotional spam OR low-value automated system notifications (app digests, marketing notifications, routine system blasts) — never for important personal mail, receipts, invoices, shipping, security, or billing alerts
+- should_delete=true for advertisement/promotional spam, low-value automated system notifications, or newsletter/digest editions the user likely does not need — never for important personal mail, receipts, invoices, shipping, security, or billing alerts
 - draft_reply only when needs_reply is true; write a polite, concise reply in a professional tone
 - Output strict JSON only: double-quoted strings, no backslash-escaped quotes inside values, no markdown`;
 
@@ -126,6 +126,10 @@ async function scanInbox({ q = 'in:inbox', max = 5 } = {}) {
   return { reviews, scanned: reviews.length };
 }
 
+function isUnparseableReviewError(err) {
+  return String(err?.message || err).startsWith('Model returned invalid JSON');
+}
+
 async function cleanupInbox({ q = 'in:inbox', max = 25 } = {}) {
   const limit = Math.min(Math.max(Number(max) || 25, 1), 50);
   const messages = await workspaceEmail.listMessages({ q, maxResults: limit });
@@ -151,11 +155,28 @@ async function cleanupInbox({ q = 'in:inbox', max = 25 } = {}) {
         });
       }
     } catch (err) {
-      errors.push({
-        message_id: msg.id,
-        subject: msg.subject,
-        error: err.message,
-      });
+      if (isUnparseableReviewError(err)) {
+        try {
+          await workspaceEmail.deleteMessage(msg.id);
+          deleted.push({
+            message_id: msg.id,
+            subject: msg.subject,
+            from: msg.from,
+          });
+        } catch (deleteErr) {
+          errors.push({
+            message_id: msg.id,
+            subject: msg.subject,
+            error: deleteErr.message,
+          });
+        }
+      } else {
+        errors.push({
+          message_id: msg.id,
+          subject: msg.subject,
+          error: err.message,
+        });
+      }
     }
   }
 
@@ -173,6 +194,7 @@ module.exports = {
   CLEANUP_CATEGORIES,
   normalizeReview,
   salvageReviewJson,
+  isUnparseableReviewError,
   reviewMessage,
   scanInbox,
   cleanupInbox,

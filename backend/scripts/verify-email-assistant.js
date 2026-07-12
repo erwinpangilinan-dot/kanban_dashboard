@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 const assert = require('assert');
-const { normalizeReview, salvageReviewJson, CATEGORIES } = require('../src/services/email-assistant');
+const { normalizeReview, salvageReviewJson, isUnparseableReviewError, CATEGORIES } = require('../src/services/email-assistant');
 const { repairJsonText, parseJsonContent } = require('../src/services/ollama');
 
 const ad = normalizeReview({
@@ -49,6 +49,16 @@ const receipt = normalizeReview({
 }, 'msg-ship');
 assert.strictEqual(receipt.should_delete, false);
 
+const newsletter = normalizeReview({
+  category: 'newsletter',
+  needs_reply: false,
+  should_delete: true,
+  summary: 'Weekly digest',
+  reasoning: 'Mailing list roundup',
+  draft_reply: null,
+}, 'msg-news');
+assert.strictEqual(newsletter.should_delete, true, 'newsletter cleanup allowed');
+
 const junk = normalizeReview({ category: 'bogus' }, 'msg-3');
 assert.strictEqual(junk.category, 'other');
 assert.deepStrictEqual(CATEGORIES.length, 5);
@@ -63,5 +73,11 @@ const repaired = parseJsonContent(repairJsonText(
 ));
 assert.strictEqual(repaired.category, 'notification');
 assert.strictEqual(repaired.summary, 'Hello world');
+
+assert.strictEqual(
+  isUnparseableReviewError(new Error('Model returned invalid JSON: {"category":')),
+  true,
+);
+assert.strictEqual(isUnparseableReviewError(new Error('Gmail API failed')), false);
 
 console.log('✓ email assistant helpers passed');
