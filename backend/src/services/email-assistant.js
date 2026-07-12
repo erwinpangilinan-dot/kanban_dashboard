@@ -2,6 +2,7 @@ const ollama = require('./ollama');
 const workspaceEmail = require('./workspace-email');
 
 const CATEGORIES = ['important', 'advertisement', 'newsletter', 'notification', 'other'];
+const CLEANUP_CATEGORIES = new Set(['advertisement', 'notification']);
 
 const SYSTEM_PROMPT = `You are a personal email assistant. Analyze the email and respond ONLY with valid JSON (no markdown fences):
 {
@@ -17,15 +18,47 @@ Rules:
 - important: personal, work, bills, appointments, actionable requests
 - advertisement: marketing promos, sales spam, unsolicited ads
 - newsletter: subscribed digests / content roundups (not pure ads)
-- notification: automated alerts, receipts, shipping, system messages
+- notification: automated system alerts, app digests, platform status updates
 - needs_reply=true only when a thoughtful human reply is clearly expected
-- should_delete=true only for obvious advertisement/promotional spam — never for important, personal, or transactional mail
-- draft_reply only when needs_reply is true; write a polite, concise reply in a professional tone`;
+- should_delete=true for advertisement/promotional spam OR low-value automated system notifications (app digests, marketing notifications, routine system blasts) — never for important personal mail, receipts, invoices, shipping, security, or billing alerts
+- draft_reply only when needs_reply is true; write a polite, concise reply in a professional tone
+- Output strict JSON only: double-quoted strings, no backslash-escaped quotes inside values, no markdown`;
+
+function salvageReviewJson(text) {
+  const categoryMatch = text.match(/"category"\s*:\s*(?:"([^"]+)"|\\"([^"\\]+))/i);
+  const categoryRaw = (categoryMatch?.[1] || categoryMatch?.[2] || '').toLowerCase();
+  if (!categoryRaw) return null;
+
+  const needsReply = /"needs_reply"\s*:\s*true/i.test(text);
+  const shouldDelete = /"should_delete"\s*:\s*true/i.test(text);
+  const summary = text.match(/"summary"\s*:\s*(?:"([^"]*)"|\\"([^"]*))/i);
+  const reasoning = text.match(/"reasoning"\s*:\s*(?:"([^"]*)"|\\"([^"]*))/i);
+
+  return {
+    category: CATEGORIES.includes(categoryRaw) ? categoryRaw : 'other',
+    needs_reply: needsReply,
+    should_delete: shouldDelete,
+    summary: (summary?.[1] || summary?.[2] || '').slice(0, 500),
+    reasoning: (reasoning?.[1] || reasoning?.[2] || '').slice(0, 1000),
+    draft_reply: null,
+  };
+}
+
+async function parseReviewResponse(messages) {
+  const content = await ollama.chat({ messages });
+  try {
+    return ollama.parseJsonContent(content);
+  } catch {
+    const salvaged = salvageReviewJson(content);
+    if (salvaged) return salvaged;
+    throw new Error(`Model returned invalid JSON: ${content.slice(0, 120)}`);
+  }
+}
 
 function normalizeReview(raw, messageId) {
   const category = CATEGORIES.includes(raw?.category) ? raw.category : 'other';
   const needsReply = Boolean(raw?.needs_reply);
-  const shouldDelete = Boolean(raw?.should_delete) && category === 'advertisement';
+  const shouldDelete = Boolean(raw?.should_delete) && CLEANUP_CATEGORIES.has(category);
 
   let draftReply = null;
   if (needsReply && raw?.draft_reply && typeof raw.draft_reply === 'object') {
@@ -51,15 +84,13 @@ async function reviewMessage(messageId) {
   const msg = await workspaceEmail.getMessage(messageId);
   const body = (msg.body || msg.snippet || '').slice(0, 8000);
 
-  const raw = await ollama.chatJson({
-    messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
-      {
-        role: 'user',
-        content: `From: ${msg.from}\nTo: ${msg.to}\nSubject: ${msg.subject}\nDate: ${msg.date}\n\n${body}`,
-      },
-    ],
-  });
+  const raw = await parseReviewResponse([
+    { role: 'system', content: SYSTEM_PROMPT },
+    {
+      role: 'user',
+      content: `From: ${msg.from}\nTo: ${msg.to}\nSubject: ${msg.subject}\nDate: ${msg.date}\n\n${body}`,
+    },
+  ]);
 
   return {
     ...normalizeReview(raw, messageId),
@@ -139,7 +170,9 @@ async function cleanupInbox({ q = 'in:inbox', max = 25 } = {}) {
 
 module.exports = {
   CATEGORIES,
+  CLEANUP_CATEGORIES,
   normalizeReview,
+  salvageReviewJson,
   reviewMessage,
   scanInbox,
   cleanupInbox,

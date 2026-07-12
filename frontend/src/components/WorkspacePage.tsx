@@ -106,7 +106,9 @@ function AssistantReviewCard({
       {review.should_delete && (
         <div className="mt-4 rounded-lg border border-orange-500/30 bg-orange-500/10 p-3">
           <p className="text-sm text-orange-100">
-            This looks like an advertisement. Delete it?
+            {review.category === 'notification'
+              ? 'This looks like an automated system notification. Delete it?'
+              : 'This looks like an advertisement. Delete it?'}
           </p>
           <div className="mt-2 flex gap-2">
             <button
@@ -430,7 +432,7 @@ function EmailPanel({
                 className="flex w-full items-center justify-center gap-2 rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-xs font-medium text-orange-200 hover:bg-orange-500/20 disabled:opacity-50"
               >
                 <Sparkles className="h-3.5 w-3.5" />
-                {cleaning ? 'Cleaning inbox…' : 'Auto-cleanup ads'}
+                {cleaning ? 'Cleaning inbox…' : 'Auto-cleanup junk'}
               </button>
             </div>
           )}
@@ -438,12 +440,12 @@ function EmailPanel({
             <p className="text-xs text-gray-500">Reviewing up to 5 emails — may take 15–60 seconds.</p>
           )}
           {cleaning && (
-            <p className="text-xs text-gray-500">Scanning up to 25 emails and trashing ads — may take 1–3 minutes.</p>
+            <p className="text-xs text-gray-500">Scanning up to 25 emails and trashing junk (ads + system notifications) — may take 1–3 minutes.</p>
           )}
           {cleanupResult && !cleaning && (
             <div className="rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-xs text-orange-100">
               <p>
-                Cleanup done — trashed {cleanupResult.deleted} ad{cleanupResult.deleted === 1 ? '' : 's'},
+                Cleanup done — trashed {cleanupResult.deleted} junk email{cleanupResult.deleted === 1 ? '' : 's'},
                 kept {cleanupResult.skipped} (reviewed {cleanupResult.scanned})
                 {cleanupResult.errors.length > 0 && `, ${cleanupResult.errors.length} error${cleanupResult.errors.length === 1 ? '' : 's'}`}.
               </p>

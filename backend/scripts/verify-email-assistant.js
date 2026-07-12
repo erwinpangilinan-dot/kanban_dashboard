@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 const assert = require('assert');
-const { normalizeReview, CATEGORIES } = require('../src/services/email-assistant');
+const { normalizeReview, salvageReviewJson, CATEGORIES } = require('../src/services/email-assistant');
+const { repairJsonText, parseJsonContent } = require('../src/services/ollama');
 
 const ad = normalizeReview({
   category: 'advertisement',
@@ -28,8 +29,39 @@ assert.strictEqual(important.should_delete, false, 'must not delete important ma
 assert.strictEqual(important.needs_reply, true);
 assert.ok(important.draft_reply?.body.includes('Sounds good'));
 
+const systemNotice = normalizeReview({
+  category: 'notification',
+  needs_reply: false,
+  should_delete: true,
+  summary: 'App status digest',
+  reasoning: 'Routine automated blast',
+  draft_reply: null,
+}, 'msg-notify');
+assert.strictEqual(systemNotice.should_delete, true, 'notification cleanup allowed');
+
+const receipt = normalizeReview({
+  category: 'notification',
+  needs_reply: false,
+  should_delete: false,
+  summary: 'Your order shipped',
+  reasoning: 'Transactional shipping alert',
+  draft_reply: null,
+}, 'msg-ship');
+assert.strictEqual(receipt.should_delete, false);
+
 const junk = normalizeReview({ category: 'bogus' }, 'msg-3');
 assert.strictEqual(junk.category, 'other');
 assert.deepStrictEqual(CATEGORIES.length, 5);
+
+const broken = '{ "category": "notification", "needs_reply": false, "should_delete": true, "summary": \\"Automated email notification about';
+const salvaged = salvageReviewJson(broken);
+assert.strictEqual(salvaged?.category, 'notification');
+assert.strictEqual(salvaged?.should_delete, true);
+
+const repaired = parseJsonContent(repairJsonText(
+  '{ "category": "notification", "needs_reply": false, "summary": \\"Hello world\\" }'
+));
+assert.strictEqual(repaired.category, 'notification');
+assert.strictEqual(repaired.summary, 'Hello world');
 
 console.log('✓ email assistant helpers passed');

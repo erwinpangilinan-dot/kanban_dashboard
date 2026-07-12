@@ -16,24 +16,49 @@ function connectionHint(err) {
   return err?.message || 'Ollama request failed';
 }
 
-function parseJsonContent(content) {
-  try {
-    return JSON.parse(content);
-  } catch {
-    const start = content.indexOf('{');
-    const end = content.lastIndexOf('}');
-    if (start >= 0 && end > start) {
-      try {
-        return JSON.parse(content.slice(start, end + 1));
-      } catch {
-        // fall through
-      }
-    }
-    throw new Error(`Model returned invalid JSON: ${content.slice(0, 120)}`);
-  }
+function extractJsonBlock(content) {
+  const start = content.indexOf('{');
+  const end = content.lastIndexOf('}');
+  if (start >= 0 && end > start) return content.slice(start, end + 1);
+  if (start >= 0) return content.slice(start);
+  return content;
 }
 
-async function chatJson({ messages }) {
+function repairJsonText(text) {
+  let t = text.trim();
+  if (t.startsWith('```')) {
+    t = t.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  }
+  t = t.replace(/[\u201C\u201D]/g, '"');
+  // "field": \"value\" → "field": "value"
+  t = t.replace(
+    /("(?:category|summary|reasoning|subject|body)")\s*:\s*\\"((?:[^"\\]|\\.)*)\\"?/g,
+    '$1: "$2"'
+  );
+  t = t.replace(/,(\s*})/g, '$1');
+  return t;
+}
+
+function parseJsonContent(content) {
+  const candidates = [
+    content,
+    extractJsonBlock(content),
+    repairJsonText(extractJsonBlock(content)),
+  ];
+
+  for (const text of candidates) {
+    if (!text) continue;
+    try {
+      return JSON.parse(text);
+    } catch {
+      // try next repair pass
+    }
+  }
+
+  throw new Error(`Model returned invalid JSON: ${content.slice(0, 120)}`);
+}
+
+async function chat({ messages }) {
   const model = process.env.OLLAMA_MODEL;
   if (!model) {
     throw new Error('Ollama is not configured. Set OLLAMA_MODEL in .env.');
@@ -53,7 +78,7 @@ async function chatJson({ messages }) {
         format: 'json',
         stream: false,
         think: false,
-        options: { num_predict: 1024 },
+        options: { num_predict: 512 },
       }),
       signal: controller.signal,
     });
@@ -71,7 +96,7 @@ async function chatJson({ messages }) {
         : 'No content returned.';
       throw new Error(`Empty response from Ollama (${hint})`);
     }
-    return parseJsonContent(content);
+    return content;
   } catch (err) {
     if (err.name === 'AbortError') {
       throw new Error(`Ollama timed out after ${timeout}ms`);
@@ -79,7 +104,6 @@ async function chatJson({ messages }) {
     if (
       err.message?.startsWith('Ollama request failed')
       || err.message?.startsWith('Empty response')
-      || err.message?.startsWith('Model returned invalid JSON')
     ) {
       throw err;
     }
@@ -89,8 +113,15 @@ async function chatJson({ messages }) {
   }
 }
 
+async function chatJson({ messages }) {
+  return parseJsonContent(await chat({ messages }));
+}
+
 module.exports = {
   isConfigured,
   baseUrl,
+  chat,
+  repairJsonText,
+  parseJsonContent,
   chatJson,
 };
