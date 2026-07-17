@@ -5,6 +5,7 @@ const ollama = require('../services/ollama');
 const workspaceEmail = require('../services/workspace-email');
 const workspaceCalendar = require('../services/workspace-calendar');
 const emailAssistant = require('../services/email-assistant');
+const emailAgent = require('../services/email-agent');
 
 const router = express.Router();
 
@@ -81,6 +82,32 @@ router.post('/email/assistant/cleanup', requireAssistant, asyncHandler(async (re
   const q = typeof req.body?.q === 'string' ? req.body.q : 'in:inbox';
   const max = Math.min(Number(req.body?.max) || 25, 50);
   res.json(await emailAssistant.cleanupInbox({ q, max }));
+}));
+
+// ── Email Agent Reviews ────────────────────────────────────────────────────────
+
+router.get('/email/agent/reviews', asyncHandler(async (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 50, 100);
+  res.json(await emailAgent.getAllReviews(limit));
+}));
+
+router.get('/email/agent/pending', asyncHandler(async (req, res) => {
+  res.json(await emailAgent.getPendingReviews());
+}));
+
+router.post('/email/agent/approve/:id', asyncHandler(async (req, res) => {
+  const { body } = req.body;
+  if (!body) return res.status(400).json({ error: 'body is required' });
+  res.json(await emailAgent.approveAndSendDraft(req.params.id, body));
+}));
+
+router.post('/email/agent/reject/:id', asyncHandler(async (req, res) => {
+  res.json(await emailAgent.rejectDraft(req.params.id));
+}));
+
+router.post('/email/agent/trigger', asyncHandler(async (req, res) => {
+  await emailAgent.checkInboxForAgentReviews();
+  res.json({ success: true });
 }));
 
 router.get('/calendar/events', asyncHandler(async (req, res) => {

@@ -17,6 +17,7 @@ import type {
   Task,
   UpdateTaskInput,
   WorkspaceStatus,
+  EmailAgentReview,
 } from '../types';
 
 const BASE = '/api';
@@ -148,6 +149,24 @@ export const api = {
 
   deleteCalendarEvent: (id: string) =>
     request<void>(`/workspace/calendar/events/${id}`, { method: 'DELETE' }),
+
+  getEmailAgentReviews: (limit = 50) =>
+    request<EmailAgentReview[]>(`/workspace/email/agent/reviews?limit=${limit}`),
+
+  getEmailAgentPending: () =>
+    request<EmailAgentReview[]>('/workspace/email/agent/pending'),
+
+  approveEmailAgentDraft: (id: string, body: string) =>
+    request<{ success: boolean }>(`/workspace/email/agent/approve/${id}`, {
+      method: 'POST',
+      body: JSON.stringify({ body }),
+    }),
+
+  rejectEmailAgentDraft: (id: string) =>
+    request<{ success: boolean }>(`/workspace/email/agent/reject/${id}`, { method: 'POST' }),
+
+  triggerEmailAgentScan: () =>
+    request<{ success: boolean }>('/workspace/email/agent/trigger', { method: 'POST' }),
 
   getGitHubStatus: () => request<GitHubStatus>('/github/status'),
 

@@ -20,6 +20,7 @@ import type {
   EmailMessage,
   EmailSummary,
   WorkspaceTab,
+  EmailAgentReview,
 } from '../types';
 
 interface WorkspacePageProps {
@@ -223,6 +224,13 @@ function EmailPanel({
   const [cleaning, setCleaning] = useState(false);
   const [cleanupResult, setCleanupResult] = useState<EmailAssistantCleanupResult | null>(null);
 
+  // Email Agent states
+  const [viewMode, setViewMode] = useState<'inbox' | 'agent'>('inbox');
+  const [agentReviews, setAgentReviews] = useState<EmailAgentReview[]>([]);
+  const [selectedAgentReviewId, setSelectedAgentReviewId] = useState<string | null>(null);
+  const [editedDraftBody, setEditedDraftBody] = useState('');
+  const [triggeringScan, setTriggeringScan] = useState(false);
+
   const loadMessages = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -235,11 +243,28 @@ function EmailPanel({
     } finally {
       setLoading(false);
     }
-  }, [query]);
+  }, [query, selectedId]);
+
+  const loadAgentReviews = useCallback(async () => {
+    try {
+      const data = await api.getEmailAgentPending();
+      setAgentReviews(data);
+      if (data.length && !selectedAgentReviewId) {
+        setSelectedAgentReviewId(data[0].id);
+        setEditedDraftBody(data[0].proposed_body || '');
+      }
+    } catch (err) {
+      console.error('Failed to load agent reviews:', err);
+    }
+  }, [selectedAgentReviewId]);
 
   useEffect(() => {
     loadMessages();
   }, [loadMessages, refreshToken]);
+
+  useEffect(() => {
+    loadAgentReviews();
+  }, [loadAgentReviews, viewMode, refreshToken]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -255,6 +280,15 @@ function EmailPanel({
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load message'))
       .finally(() => setDetailLoading(false));
   }, [selectedId, refreshToken]);
+
+  useEffect(() => {
+    const active = agentReviews.find((r) => r.id === selectedAgentReviewId);
+    if (active) {
+      setEditedDraftBody(active.proposed_body || '');
+    } else {
+      setEditedDraftBody('');
+    }
+  }, [selectedAgentReviewId, agentReviews]);
 
   async function handleReply() {
     if (!detail || !replyBody.trim()) return;
@@ -377,7 +411,50 @@ function EmailPanel({
     }
   }
 
-  const assistantBusy = scanning || reviewing || cleaning;
+  // Email Agent actions
+  async function handleApproveAgentDraft(id: string) {
+    setSending(true);
+    setError(null);
+    try {
+      await api.approveEmailAgentDraft(id, editedDraftBody);
+      await loadAgentReviews();
+      await loadMessages();
+      setSelectedAgentReviewId(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to approve draft');
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function handleRejectAgentDraft(id: string) {
+    setSending(true);
+    setError(null);
+    try {
+      await api.rejectEmailAgentDraft(id);
+      await loadAgentReviews();
+      setSelectedAgentReviewId(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to reject draft');
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function handleTriggerAgentScan() {
+    setTriggeringScan(true);
+    setError(null);
+    try {
+      await api.triggerEmailAgentScan();
+      await loadAgentReviews();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to run agent scan');
+    } finally {
+      setTriggeringScan(false);
+    }
+  }
+
+  const assistantBusy = scanning || reviewing || cleaning || triggeringScan;
 
   function handleOpenErrorEmail(messageId: string) {
     setSelectedId(messageId);
@@ -411,39 +488,86 @@ function EmailPanel({
   }
 
   const activeReview = assistantReview?.message_id === selectedId ? assistantReview : null;
+  const activeAgentReview = agentReviews.find((r) => r.id === selectedAgentReviewId) || null;
 
   return (
     <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
       <div className="rounded-xl border border-surface-border bg-surface-raised shadow-card">
+        {/* View Mode Tabs */}
+        <div className="flex border-b border-surface-border text-center">
+          <button
+            type="button"
+            onClick={() => setViewMode('inbox')}
+            className={`flex-1 py-2.5 text-xs font-semibold transition-colors border-b-2 ${
+              viewMode === 'inbox'
+                ? 'border-accent text-accent-hover'
+                : 'border-transparent text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            Inbox ({messages.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('agent')}
+            className={`flex-1 py-2.5 text-xs font-semibold transition-colors border-b-2 flex items-center justify-center gap-1.5 ${
+              viewMode === 'agent'
+                ? 'border-accent text-accent-hover'
+                : 'border-transparent text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            <Bot className="h-3.5 w-3.5" />
+            Agent Drafts ({agentReviews.length})
+          </button>
+        </div>
+
         <div className="border-b border-surface-border p-3 space-y-2">
-          {assistantEnabled && (
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={handleScanInbox}
-                disabled={assistantBusy}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent/15 px-3 py-2 text-xs font-medium text-accent-hover hover:bg-accent/25 disabled:opacity-50"
-              >
-                <Bot className="h-3.5 w-3.5" />
-                {scanning ? 'Scanning inbox…' : 'Scan inbox with assistant'}
-              </button>
-              <button
-                type="button"
-                onClick={handleCleanup}
-                disabled={assistantBusy}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-xs font-medium text-orange-200 hover:bg-orange-500/20 disabled:opacity-50"
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                {cleaning ? 'Cleaning inbox…' : 'Auto-cleanup junk'}
-              </button>
-            </div>
+          {viewMode === 'inbox' ? (
+            <>
+              {assistantEnabled && (
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={handleScanInbox}
+                    disabled={assistantBusy}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent/15 px-3 py-2 text-xs font-medium text-accent-hover hover:bg-accent/25 disabled:opacity-50"
+                  >
+                    <Bot className="h-3.5 w-3.5" />
+                    {scanning ? 'Scanning inbox…' : 'Scan inbox with assistant'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCleanup}
+                    disabled={assistantBusy}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-xs font-medium text-orange-200 hover:bg-orange-500/20 disabled:opacity-50"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    {cleaning ? 'Cleaning inbox…' : 'Auto-cleanup junk'}
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={handleTriggerAgentScan}
+              disabled={assistantBusy}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500/15 px-3 py-2 text-xs font-medium text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-50"
+            >
+              <Bot className="h-3.5 w-3.5" />
+              {triggeringScan ? 'Agent scanning inbox…' : 'Trigger agent scan now'}
+            </button>
           )}
+
           {scanning && (
             <p className="text-xs text-gray-500">Reviewing up to 5 emails — may take 15–60 seconds.</p>
           )}
           {cleaning && (
-            <p className="text-xs text-gray-500">Scanning up to 25 emails and trashing junk (ads, newsletters, system notifications) — may take 1–3 minutes.</p>
+            <p className="text-xs text-gray-500">Scanning up to 25 emails and trashing junk — may take 1–3 minutes.</p>
           )}
+          {triggeringScan && (
+            <p className="text-xs text-gray-500">Agent checking for new emails and generating replies with Memoria context — may take 15-45 seconds.</p>
+          )}
+
           {cleanupResult && !cleaning && (
             <div className="rounded-lg border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-xs text-orange-100">
               <p>
@@ -475,42 +599,80 @@ function EmailPanel({
               {scanNotice}
             </p>
           )}
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && loadMessages()}
-              placeholder="Gmail search (in:inbox)"
-              className="w-full rounded-lg border border-surface-border bg-surface py-2 pl-9 pr-3 text-sm text-gray-200 placeholder:text-gray-600 focus:border-accent/50 focus:outline-none"
-            />
-          </div>
+
+          {viewMode === 'inbox' && (
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && loadMessages()}
+                placeholder="Gmail search (in:inbox)"
+                className="w-full rounded-lg border border-surface-border bg-surface py-2 pl-9 pr-3 text-sm text-gray-200 placeholder:text-gray-600 focus:border-accent/50 focus:outline-none"
+              />
+            </div>
+          )}
         </div>
+
         <div className="max-h-[560px] overflow-y-auto">
-          {loading ? (
-            <p className="p-4 text-sm text-gray-500">Loading inbox…</p>
-          ) : messages.length === 0 ? (
-            <p className="p-4 text-sm text-gray-500">No messages found.</p>
+          {viewMode === 'inbox' ? (
+            loading ? (
+              <p className="p-4 text-sm text-gray-500">Loading inbox…</p>
+            ) : messages.length === 0 ? (
+              <p className="p-4 text-sm text-gray-500">No messages found.</p>
+            ) : (
+              messages.map((msg) => (
+                <button
+                  key={msg.id}
+                  type="button"
+                  onClick={() => setSelectedId(msg.id)}
+                  className={`block w-full border-b border-surface-border px-4 py-3 text-left transition-colors hover:bg-surface-overlay ${
+                    selectedId === msg.id ? 'bg-accent/10' : ''
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className={`truncate text-sm ${msg.unread ? 'font-semibold text-white' : 'text-gray-300'}`}>
+                      {msg.from.replace(/<.*>/, '').trim() || msg.from}
+                    </p>
+                    {msg.unread && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-accent" />}
+                  </div>
+                  <p className="mt-0.5 truncate text-sm text-gray-200">{msg.subject}</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-gray-500">{msg.snippet}</p>
+                </button>
+              ))
+            )
           ) : (
-            messages.map((msg) => (
-              <button
-                key={msg.id}
-                type="button"
-                onClick={() => setSelectedId(msg.id)}
-                className={`block w-full border-b border-surface-border px-4 py-3 text-left transition-colors hover:bg-surface-overlay ${
-                  selectedId === msg.id ? 'bg-accent/10' : ''
-                }`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className={`truncate text-sm ${msg.unread ? 'font-semibold text-white' : 'text-gray-300'}`}>
-                    {msg.from.replace(/<.*>/, '').trim() || msg.from}
-                  </p>
-                  {msg.unread && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-accent" />}
-                </div>
-                <p className="mt-0.5 truncate text-sm text-gray-200">{msg.subject}</p>
-                <p className="mt-1 line-clamp-2 text-xs text-gray-500">{msg.snippet}</p>
-              </button>
-            ))
+            agentReviews.length === 0 ? (
+              <p className="p-4 text-sm text-gray-500">No pending drafts to review.</p>
+            ) : (
+              agentReviews.map((rev) => (
+                <button
+                  key={rev.id}
+                  type="button"
+                  onClick={() => setSelectedAgentReviewId(rev.id)}
+                  className={`block w-full border-b border-surface-border px-4 py-3 text-left transition-colors hover:bg-surface-overlay ${
+                    selectedAgentReviewId === rev.id ? 'bg-accent/10' : ''
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="truncate text-xs font-semibold text-accent-hover">
+                      {rev.from_address.replace(/<.*>/, '').trim() || rev.from_address}
+                    </p>
+                    <span className="text-[10px] text-gray-500">
+                      {new Date(rev.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 truncate text-sm text-gray-200">{rev.subject}</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-gray-500">{rev.body_snippet}</p>
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className="inline-block rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-medium text-amber-300">
+                      {rev.category}
+                    </span>
+                    <span className="text-[10px] text-accent/80 font-medium">Needs Reply</span>
+                  </div>
+                </button>
+              ))
+            )
           )}
         </div>
       </div>
@@ -521,87 +683,159 @@ function EmailPanel({
             {error}
           </p>
         )}
-        {detailLoading ? (
-          <p className="text-sm text-gray-500">Loading message…</p>
-        ) : !detail ? (
-          <p className="text-sm text-gray-500">Select a message to read.</p>
-        ) : (
-          <>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="text-lg font-semibold text-white">{detail.subject}</h3>
-                <p className="mt-1 text-sm text-gray-400">From: {detail.from}</p>
-                <p className="text-xs text-gray-500">{detail.date}</p>
-              </div>
-              <div className="flex shrink-0 items-center gap-1">
-                {assistantEnabled && (
+
+        {viewMode === 'inbox' ? (
+          detailLoading ? (
+            <p className="text-sm text-gray-500">Loading message…</p>
+          ) : !detail ? (
+            <p className="text-sm text-gray-500">Select a message to read.</p>
+          ) : (
+            <>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-semibold text-white">{detail.subject}</h3>
+                  <p className="mt-1 text-sm text-gray-400">From: {detail.from}</p>
+                  <p className="text-xs text-gray-500">{detail.date}</p>
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  {assistantEnabled && (
+                    <button
+                      type="button"
+                      onClick={handleReview}
+                      disabled={assistantBusy}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-accent/30 px-3 py-1.5 text-xs font-medium text-accent-hover hover:bg-accent/10 disabled:opacity-50"
+                    >
+                      <Bot className="h-3.5 w-3.5" />
+                      {reviewing ? 'Reviewing…' : 'Review'}
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={handleReview}
-                    disabled={assistantBusy}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-accent/30 px-3 py-1.5 text-xs font-medium text-accent-hover hover:bg-accent/10 disabled:opacity-50"
+                    onClick={() => setReplyOpen((v) => !v)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-surface-border px-3 py-1.5 text-xs font-medium text-gray-300 hover:border-accent/40 hover:text-accent-hover"
                   >
-                    <Bot className="h-3.5 w-3.5" />
-                    {reviewing ? 'Reviewing…' : 'Review'}
+                    <Reply className="h-3.5 w-3.5" />
+                    Reply
                   </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setReplyOpen((v) => !v)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-surface-border px-3 py-1.5 text-xs font-medium text-gray-300 hover:border-accent/40 hover:text-accent-hover"
-                >
-                  <Reply className="h-3.5 w-3.5" />
-                  Reply
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  className="rounded-lg border border-surface-border p-2 text-gray-400 hover:border-red-500/40 hover:text-red-300 disabled:opacity-50"
-                  aria-label="Delete message"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="rounded-lg border border-surface-border p-2 text-gray-400 hover:border-red-500/40 hover:text-red-300 disabled:opacity-50"
+                    aria-label="Delete message"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
-            </div>
-            {activeReview && (
-              <div className="mt-4">
-                <AssistantReviewCard
-                  review={activeReview}
-                  onApproveDelete={handleDelete}
-                  onApproveReply={handleApproveReply}
-                  onDismiss={() => {
-                    setAssistantReview(null);
-                    if (scanQueue.length) advanceScanQueue(activeReview.message_id);
-                  }}
-                  sending={sending}
-                  deleting={deleting}
-                />
+              {activeReview && (
+                <div className="mt-4">
+                  <AssistantReviewCard
+                    review={activeReview}
+                    onApproveDelete={handleDelete}
+                    onApproveReply={handleApproveReply}
+                    onDismiss={() => {
+                      setAssistantReview(null);
+                      if (scanQueue.length) advanceScanQueue(activeReview.message_id);
+                    }}
+                    sending={sending}
+                    deleting={deleting}
+                  />
+                </div>
+              )}
+              <div className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-gray-300">
+                {detail.body || detail.snippet}
               </div>
-            )}
-            <div className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-gray-300">
-              {detail.body || detail.snippet}
-            </div>
-            {replyOpen && (
-              <div className="mt-4 border-t border-surface-border pt-4">
-                <textarea
-                  value={replyBody}
-                  onChange={(e) => setReplyBody(e.target.value)}
-                  rows={5}
-                  placeholder="Write your reply…"
-                  className="w-full rounded-lg border border-surface-border bg-surface px-3 py-2 text-sm text-gray-200 focus:border-accent/50 focus:outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={handleReply}
-                  disabled={sending || !replyBody.trim()}
-                  className="mt-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
-                >
-                  {sending ? 'Sending…' : 'Send reply'}
-                </button>
+              {replyOpen && (
+                <div className="mt-4 border-t border-surface-border pt-4">
+                  <textarea
+                    value={replyBody}
+                    onChange={(e) => setReplyBody(e.target.value)}
+                    rows={5}
+                    placeholder="Write your reply…"
+                    className="w-full rounded-lg border border-surface-border bg-surface px-3 py-2 text-sm text-gray-200 focus:border-accent/50 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleReply}
+                    disabled={sending || !replyBody.trim()}
+                    className="mt-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+                  >
+                    {sending ? 'Sending…' : 'Send reply'}
+                  </button>
+                </div>
+              )}
+            </>
+          )
+        ) : (
+          !activeAgentReview ? (
+            <p className="text-sm text-gray-500">Select a pending draft to review.</p>
+          ) : (
+            <>
+              {/* Draft Review Details */}
+              <div className="flex items-start justify-between gap-3 border-b border-surface-border pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Bot className="h-4 w-4 text-emerald-400" />
+                    <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Email Agent Proposed Draft</span>
+                  </div>
+                  <h3 className="mt-1.5 text-base font-semibold text-white">{activeAgentReview.subject}</h3>
+                  <p className="mt-1 text-sm text-gray-400">From: {activeAgentReview.from_address}</p>
+                  <p className="text-xs text-gray-500">Reviewed on {new Date(activeAgentReview.created_at).toLocaleString()}</p>
+                </div>
               </div>
-            )}
-          </>
+
+              {/* Original snippet */}
+              <div className="mt-4 rounded-lg bg-surface-overlay p-4 border border-surface-border">
+                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Original Email Snippet</h4>
+                <p className="mt-2 text-sm text-gray-300 whitespace-pre-wrap leading-relaxed">{activeAgentReview.body_snippet}</p>
+              </div>
+
+              {/* Proposed Reply Compose Area */}
+              <div className="mt-5 space-y-3">
+                <div>
+                  <label className="text-xs font-semibold text-accent uppercase tracking-wider block mb-1">Proposed Subject</label>
+                  <input
+                    type="text"
+                    disabled
+                    value={activeAgentReview.proposed_subject || `Re: ${activeAgentReview.subject}`}
+                    className="w-full rounded-lg border border-surface-border bg-surface-overlay px-3 py-2 text-sm text-gray-400 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-accent uppercase tracking-wider block mb-1 flex items-center justify-between">
+                    <span>Proposed Reply Body (Editable)</span>
+                    <span className="text-[10px] text-emerald-400 normal-case">Memoria profile facts loaded</span>
+                  </label>
+                  <textarea
+                    rows={8}
+                    value={editedDraftBody}
+                    onChange={(e) => setEditedDraftBody(e.target.value)}
+                    className="w-full rounded-lg border border-surface-border bg-surface px-3 py-3 text-sm text-gray-200 leading-relaxed focus:border-accent/50 focus:outline-none"
+                  />
+                </div>
+
+                <div className="flex gap-2.5 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => handleApproveAgentDraft(activeAgentReview.id)}
+                    disabled={sending || !editedDraftBody.trim()}
+                    className="rounded-lg bg-emerald-500 hover:bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    Approve & Send
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRejectAgentDraft(activeAgentReview.id)}
+                    disabled={sending}
+                    className="rounded-lg border border-surface-border hover:border-red-500/40 hover:text-red-300 px-4 py-2.5 text-sm font-semibold text-gray-300 disabled:opacity-50"
+                  >
+                    Reject Draft
+                  </button>
+                </div>
+              </div>
+            </>
+          )
         )}
       </div>
     </div>

@@ -14,6 +14,7 @@ const { requireAuth } = require('./middleware/auth');
 const { errorHandler } = require('./middleware/errorHandler');
 const { startOverdueChecker } = require('./services/notify');
 const { startDigestScheduler } = require('./services/digest');
+const { startEmailAgent } = require('./services/email-agent');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -78,6 +79,7 @@ async function start() {
     }
     startOverdueChecker();
     startDigestScheduler();
+    startEmailAgent();
   });
 }
 

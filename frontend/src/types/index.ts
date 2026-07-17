@@ -240,3 +240,19 @@ export interface EmailAssistantCleanupResult {
   deleted_messages: EmailCleanupDeleted[];
   errors: EmailCleanupError[];
 }
+
+export interface EmailAgentReview {
+  id: string;
+  message_id: string;
+  thread_id?: string;
+  from_address: string;
+  subject?: string;
+  body_snippet?: string;
+  category: 'important' | 'advertisement' | 'junk' | 'information';
+  needs_reply: boolean;
+  proposed_subject?: string;
+  proposed_body?: string;
+  status: 'pending' | 'approved' | 'rejected' | 'sent';
+  created_at: string;
+  updated_at: string;
+}
