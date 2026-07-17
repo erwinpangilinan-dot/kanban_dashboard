@@ -1,7 +1,39 @@
 const db = require('../db');
 const ollama = require('./ollama');
+const gemini = require('./gemini');
 const workspaceEmail = require('./workspace-email');
 const { isConfigured: isGoogleConfigured } = require('./google-auth');
+
+async function getLlmProvider() {
+  try {
+    const { rows } = await db.query(
+      "SELECT value FROM workspace_settings WHERE key = 'email_agent_llm_provider'"
+    );
+    if (rows.length && rows[0].value === 'gemini') {
+      return 'gemini';
+    }
+  } catch (err) {
+    // Default to ollama
+  }
+  return 'ollama';
+}
+
+async function isLlmConfigured() {
+  const provider = await getLlmProvider();
+  if (provider === 'gemini') {
+    return await gemini.isConfigured();
+  }
+  return ollama.isConfigured();
+}
+
+async function chatWithActiveProvider({ messages }) {
+  const provider = await getLlmProvider();
+  if (provider === 'gemini') {
+    return await gemini.chat({ messages });
+  } else {
+    return await ollama.chat({ messages });
+  }
+}
 
 const MEMORIA_URL = process.env.MEMORIA_API_URL || 'http://localhost:8765';
 
@@ -72,7 +104,7 @@ ${mergedFacts || '- Erwin Pangilinan is an Engineer.'}
   const userContent = `From: ${fullMsg.from}\nSubject: ${fullMsg.subject}\nDate: ${fullMsg.date}\n\n${bodySnippet}`;
 
   try {
-    const rawResponse = await ollama.chat({
+    const rawResponse = await chatWithActiveProvider({
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userContent }
@@ -118,7 +150,9 @@ ${mergedFacts || '- Erwin Pangilinan is an Engineer.'}
 }
 
 async function checkInboxForAgentReviews() {
-  if (!isGoogleConfigured() || !ollama.isConfigured()) return;
+  if (!isGoogleConfigured()) return;
+  const isLlmReady = await isLlmConfigured();
+  if (!isLlmReady) return;
 
   try {
     const messages = await workspaceEmail.listMessages({ q: 'in:inbox', maxResults: 10 });
@@ -175,7 +209,7 @@ The user edited the reply to:
 
 Analyze the difference and write a single, short sentence describing the user's preference, writing style, or correction (e.g. "User prefers a casual tone", "User prefers to sign off with 'Thanks, Erwin'", "User prefers to keep replies very brief"). Respond ONLY with that sentence.`;
 
-      const preferenceSentence = await ollama.chat({
+      const preferenceSentence = await chatWithActiveProvider({
         messages: [{ role: 'user', content: learnPrompt }]
       });
 

@@ -1,7 +1,9 @@
 const express = require('express');
 const { asyncHandler } = require('../middleware/errorHandler');
+const db = require('../db');
 const { isConfigured, accountEmail } = require('../services/google-auth');
 const ollama = require('../services/ollama');
+const gemini = require('../services/gemini');
 const workspaceEmail = require('../services/workspace-email');
 const workspaceCalendar = require('../services/workspace-calendar');
 const emailAssistant = require('../services/email-assistant');
@@ -18,10 +20,26 @@ function requireGoogle(_req, res, next) {
   return next();
 }
 
-function requireAssistant(_req, res, next) {
-  if (!ollama.isConfigured()) {
+async function isLlmConfigured() {
+  try {
+    const { rows } = await db.query(
+      "SELECT value FROM workspace_settings WHERE key = 'email_agent_llm_provider'"
+    );
+    const provider = rows.length ? rows[0].value : 'ollama';
+    if (provider === 'gemini') {
+      return await gemini.isConfigured();
+    }
+  } catch (err) {
+    // defaults to ollama
+  }
+  return ollama.isConfigured();
+}
+
+async function requireAssistant(_req, res, next) {
+  const ready = await isLlmConfigured();
+  if (!ready) {
     return res.status(503).json({
-      error: 'Email assistant is not configured. Set OLLAMA_MODEL in .env and ensure Ollama is running.',
+      error: 'Email assistant is not configured. Configure Ollama or Gemini in Settings.',
     });
   }
   return next();
@@ -30,11 +48,12 @@ function requireAssistant(_req, res, next) {
 router.use(requireGoogle);
 
 router.get('/status', asyncHandler(async (_req, res) => {
+  const assistantReady = await isLlmConfigured();
   res.json({
     enabled: true,
     email: true,
     calendar: true,
-    assistant: ollama.isConfigured(),
+    assistant: assistantReady,
     account: accountEmail(),
   });
 }));
@@ -138,6 +157,51 @@ router.patch('/calendar/events/:id', asyncHandler(async (req, res) => {
 router.delete('/calendar/events/:id', asyncHandler(async (req, res) => {
   await workspaceCalendar.deleteEvent(req.params.id);
   res.status(204).send();
+}));
+
+// ── Workspace Settings ───────────────────────────────────────────────────────
+
+router.get('/settings', asyncHandler(async (req, res) => {
+  const { rows } = await db.query('SELECT key, value FROM workspace_settings');
+  const settings = {
+    email_agent_llm_provider: 'ollama',
+    gemini_api_key: ''
+  };
+  rows.forEach(r => {
+    if (r.key === 'gemini_api_key' && r.value) {
+      settings[r.key] = '********';
+    } else {
+      settings[r.key] = r.value;
+    }
+  });
+  res.json(settings);
+}));
+
+router.post('/settings', asyncHandler(async (req, res) => {
+  const { email_agent_llm_provider, gemini_api_key } = req.body;
+
+  if (email_agent_llm_provider) {
+    if (!['ollama', 'gemini'].includes(email_agent_llm_provider)) {
+      return res.status(400).json({ error: 'Invalid provider choice' });
+    }
+    await db.query(
+      `INSERT INTO workspace_settings (key, value) VALUES ('email_agent_llm_provider', $1)
+       ON CONFLICT (key) DO UPDATE SET value = $1`,
+      [email_agent_llm_provider]
+    );
+  }
+
+  if (gemini_api_key !== undefined) {
+    if (gemini_api_key !== '********') {
+      await db.query(
+        `INSERT INTO workspace_settings (key, value) VALUES ('gemini_api_key', $1)
+         ON CONFLICT (key) DO UPDATE SET value = $1`,
+        [gemini_api_key]
+      );
+    }
+  }
+
+  res.json({ success: true });
 }));
 
 module.exports = router;

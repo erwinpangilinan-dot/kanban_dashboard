@@ -18,6 +18,7 @@ import type {
   UpdateTaskInput,
   WorkspaceStatus,
   EmailAgentReview,
+  WorkspaceSettings,
 } from '../types';
 
 const BASE = '/api';
@@ -167,6 +168,15 @@ export const api = {
 
   triggerEmailAgentScan: () =>
     request<{ success: boolean }>('/workspace/email/agent/trigger', { method: 'POST' }),
+
+  getWorkspaceSettings: () =>
+    request<WorkspaceSettings>('/workspace/settings'),
+
+  updateWorkspaceSettings: (settings: WorkspaceSettings) =>
+    request<{ success: boolean }>('/workspace/settings', {
+      method: 'POST',
+      body: JSON.stringify(settings),
+    }),
 
   getGitHubStatus: () => request<GitHubStatus>('/github/status'),
 

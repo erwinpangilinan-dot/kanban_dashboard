@@ -9,6 +9,7 @@ import {
   Search,
   Sparkles,
   Trash2,
+  Settings,
 } from 'lucide-react';
 import { api } from '../api/client';
 import type {
@@ -21,6 +22,7 @@ import type {
   EmailSummary,
   WorkspaceTab,
   EmailAgentReview,
+  WorkspaceSettings,
 } from '../types';
 
 interface WorkspacePageProps {
@@ -1031,6 +1033,116 @@ function CalendarPanel({ refreshToken }: { refreshToken: number }) {
   );
 }
 
+function SettingsPanel() {
+  const [settings, setSettings] = useState<WorkspaceSettings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState('');
+
+  useEffect(() => {
+    setLoading(true);
+    api.getWorkspaceSettings()
+      .then((data) => {
+        setSettings(data);
+        setApiKeyInput(data.gemini_api_key || '');
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : 'Failed to load settings');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!settings) return;
+    setSaving(true);
+    setError(null);
+    setSuccess(false);
+    try {
+      await api.updateWorkspaceSettings({
+        email_agent_llm_provider: settings.email_agent_llm_provider,
+        gemini_api_key: apiKeyInput
+      });
+      setSuccess(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save settings');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return <div className="text-sm text-gray-500">Loading settings…</div>;
+  }
+
+  if (!settings) {
+    return <div className="text-sm text-red-400">Failed to load settings configuration.</div>;
+  }
+
+  return (
+    <div className="max-w-md rounded-xl border border-surface-border bg-surface-raised p-6 shadow-card">
+      <h3 className="text-lg font-semibold text-white mb-4">Workspace Settings</h3>
+      {error && (
+        <p className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+          {error}
+        </p>
+      )}
+      {success && (
+        <p className="mb-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
+          Settings saved successfully!
+        </p>
+      )}
+
+      <form onSubmit={handleSave} className="space-y-4">
+        <div>
+          <label className="block text-xs font-semibold text-accent uppercase tracking-wider mb-2">
+            Email Agent LLM Provider
+          </label>
+          <select
+            value={settings.email_agent_llm_provider}
+            onChange={(e) => setSettings({
+              ...settings,
+              email_agent_llm_provider: e.target.value as 'ollama' | 'gemini'
+            })}
+            className="w-full rounded-lg border border-surface-border bg-surface px-3 py-2 text-sm text-gray-200 focus:border-accent/50 focus:outline-none"
+          >
+            <option value="ollama">Ollama (Local Qwen3.5)</option>
+            <option value="gemini">Gemini API (Google Cloud)</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-accent uppercase tracking-wider mb-2">
+            Gemini API Key
+          </label>
+          <input
+            type="password"
+            value={apiKeyInput}
+            onChange={(e) => setApiKeyInput(e.target.value)}
+            placeholder={apiKeyInput === '********' ? '••••••••' : 'Enter your Gemini API Key'}
+            className="w-full rounded-lg border border-surface-border bg-surface px-3 py-2 text-sm text-gray-200 focus:border-accent/50 focus:outline-none"
+          />
+          <p className="mt-1 text-[11px] text-gray-500">
+            If selected, the agent will call the Gemini REST API to process emails. Your key is securely saved in the database.
+          </p>
+        </div>
+
+        <button
+          type="submit"
+          disabled={saving}
+          className="w-full rounded-lg bg-accent hover:bg-accent-hover py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          {saving ? 'Saving…' : 'Save Settings'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
 export function WorkspacePage({ refreshToken }: WorkspacePageProps) {
   const [tab, setTab] = useState<WorkspaceTab>('email');
   const [status, setStatus] = useState<{
@@ -1115,12 +1227,26 @@ export function WorkspacePage({ refreshToken }: WorkspacePageProps) {
           <Calendar className="h-4 w-4" />
           Calendar
         </button>
+        <button
+          type="button"
+          onClick={() => setTab('settings')}
+          className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+            tab === 'settings'
+              ? 'bg-accent/15 text-accent-hover'
+              : 'text-gray-400 hover:bg-surface-overlay hover:text-gray-200'
+          }`}
+        >
+          <Settings className="h-4 w-4" />
+          Settings
+        </button>
       </div>
 
       {tab === 'email' ? (
         <EmailPanel refreshToken={refreshToken} assistantEnabled={status.assistant} />
-      ) : (
+      ) : tab === 'calendar' ? (
         <CalendarPanel refreshToken={refreshToken} />
+      ) : (
+        <SettingsPanel />
       )}
     </div>
   );

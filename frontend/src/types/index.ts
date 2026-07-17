@@ -137,7 +137,7 @@ export interface OverviewData {
 
 export type AppView = 'overview' | 'board' | 'workspace';
 
-export type WorkspaceTab = 'email' | 'calendar';
+export type WorkspaceTab = 'email' | 'calendar' | 'settings';
 
 export interface WorkspaceStatus {
   enabled: boolean;
@@ -255,4 +255,9 @@ export interface EmailAgentReview {
   status: 'pending' | 'approved' | 'rejected' | 'sent';
   created_at: string;
   updated_at: string;
+}
+
+export interface WorkspaceSettings {
+  email_agent_llm_provider: 'ollama' | 'gemini';
+  gemini_api_key?: string;
 }
