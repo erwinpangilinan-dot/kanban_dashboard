@@ -8,7 +8,11 @@
   }
 
   body {
-    @apply min-h-screen;
+    @apply min-h-screen bg-surface text-gray-200;
+    /* Optional subtle gradient background */
+    background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.05), transparent 40%),
+                radial-gradient(circle at bottom left, rgba(168, 85, 247, 0.05), transparent 40%),
+                #0a0a0f;
   }
 
   ::-webkit-scrollbar {
@@ -22,5 +26,15 @@
 
   ::-webkit-scrollbar-thumb {
     @apply rounded-full bg-surface-border;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-surface-glass backdrop-blur-xl border border-surface-border shadow-glass rounded-2xl;
+  }
+  
+  .glass-card {
+    @apply bg-surface-raised/60 backdrop-blur-md border border-white/5 shadow-card hover:shadow-elevated transition-all duration-300;
   }
 }

@@ -68,10 +68,10 @@ export function KanbanColumn({ column, onTaskClick, onAddTask }: KanbanColumnPro
 
       <div
         ref={setNodeRef}
-        className={`flex min-h-[200px] flex-1 flex-col gap-2.5 rounded-xl border p-2 transition-colors ${
+        className={`flex min-h-[200px] flex-1 flex-col gap-3 rounded-2xl border p-3 transition-colors ${
           isOver
             ? 'border-accent/50 bg-accent/5'
-            : 'border-surface-border/60 bg-surface-raised/50'
+            : 'border-white/5 bg-surface-glass/40'
         }`}
       >
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>

@@ -34,8 +34,8 @@ export function TaskCard({ task, onClick }: TaskCardProps) {
       style={style}
       {...attributes}
       {...listeners}
-      className={`group cursor-grab rounded-lg border border-surface-border bg-surface-overlay p-3 shadow-card transition-all hover:border-accent/40 hover:shadow-elevated active:cursor-grabbing ${
-        isDragging ? 'opacity-50 ring-2 ring-accent/50' : ''
+      className={`glass-card group cursor-grab rounded-xl p-4 active:cursor-grabbing ${
+        isDragging ? 'opacity-50 ring-2 ring-accent/50' : 'hover:border-white/20 hover:-translate-y-0.5'
       }`}
     >
       <div className="flex items-start gap-2">

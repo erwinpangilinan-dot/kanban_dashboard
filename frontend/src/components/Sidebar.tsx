@@ -21,8 +21,8 @@ export function Sidebar({
   onCreateProject,
 }: SidebarProps) {
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r border-surface-border bg-surface-raised">
-      <div className="flex items-center gap-2.5 border-b border-surface-border px-5 py-5">
+    <aside className="flex w-64 shrink-0 flex-col border-r border-white/5 bg-surface-glass backdrop-blur-xl">
+      <div className="flex items-center gap-2.5 border-b border-white/5 px-5 py-5">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent">
           <Rocket className="h-4 w-4 text-white" />
         </div>

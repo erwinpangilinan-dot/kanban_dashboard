@@ -43,7 +43,7 @@ export function Header({
         : project?.description;
 
   return (
-    <header className="flex items-center justify-between border-b border-surface-border bg-surface-raised/80 px-6 py-4 backdrop-blur-sm">
+    <header className="flex items-center justify-between border-b border-white/5 bg-surface-glass px-6 py-4 backdrop-blur-xl">
       <div>
         <h2 className="text-lg font-semibold text-white">{title}</h2>
         {subtitle && (

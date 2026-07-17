@@ -27,7 +27,7 @@ function MetricCard({
   accent?: string;
 }) {
   return (
-    <div className="rounded-xl border border-surface-border bg-surface-raised p-5 shadow-card">
+    <div className="glass-card rounded-2xl p-5">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-widest text-gray-500">
           {label}
@@ -52,7 +52,7 @@ function ProjectWidget({
     <button
       type="button"
       onClick={onClick}
-      className="rounded-xl border border-surface-border bg-surface-raised p-5 text-left shadow-card transition-all hover:border-accent/40 hover:shadow-elevated"
+      className="glass-card rounded-2xl p-5 text-left hover:-translate-y-1"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2.5">
@@ -170,7 +170,7 @@ export function OverviewPage({ data, onSelectProject }: OverviewPageProps) {
       </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-xl border border-surface-border bg-surface-raised p-5">
+        <section className="glass-panel p-6">
           <h2 className="mb-4 text-xs font-bold uppercase tracking-widest text-gray-500">
             Upcoming Deadlines
           </h2>
@@ -209,7 +209,7 @@ export function OverviewPage({ data, onSelectProject }: OverviewPageProps) {
           )}
         </section>
 
-        <section className="rounded-xl border border-surface-border bg-surface-raised p-5">
+        <section className="glass-panel p-6">
           <h2 className="mb-4 text-xs font-bold uppercase tracking-widest text-gray-500">
             Recent Activity
           </h2>
