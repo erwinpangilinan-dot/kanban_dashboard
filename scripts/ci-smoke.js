@@ -9,6 +9,30 @@ const path = require('path');
 const PORT = process.env.PORT || 3001;
 const BASE = `http://localhost:${PORT}`;
 
+const fs = require('fs');
+
+// Load environment variables from .env if present
+const envPath = path.join(__dirname, '../.env');
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, 'utf8');
+  for (const line of envContent.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const parts = trimmed.split('=');
+    if (parts.length >= 2) {
+      const key = parts[0].trim();
+      let val = parts.slice(1).join('=').trim();
+      // Strip outer quotes if present
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+      if (process.env[key] === undefined) {
+        process.env[key] = val;
+      }
+    }
+  }
+}
+
 if (!process.env.DATABASE_URL) {
   console.error('DATABASE_URL is required');
   process.exit(1);
@@ -40,7 +64,11 @@ async function waitForHealth(maxAttempts = 30) {
     const health = await waitForHealth();
     console.log('✓ /api/health', health);
 
-    const overview = await fetch(`${BASE}/api/overview`);
+    const headers = {};
+    if (process.env.AUTH_API_TOKEN) {
+      headers['Authorization'] = `Bearer ${process.env.AUTH_API_TOKEN}`;
+    }
+    const overview = await fetch(`${BASE}/api/overview`, { headers });
     if (!overview.ok) throw new Error(`/api/overview returned ${overview.status}`);
     console.log('✓ /api/overview ok');
 

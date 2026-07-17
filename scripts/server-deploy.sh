@@ -56,6 +56,8 @@ cd "$ANSIBLE_DIR"
   -e "mc_google_client_id=${GOOGLE_CLIENT_ID:-}" \
   -e "mc_google_client_secret=${GOOGLE_CLIENT_SECRET:-}" \
   -e "mc_google_refresh_token=${GOOGLE_REFRESH_TOKEN:-}" \
+  -e "mc_ollama_base_url=${OLLAMA_BASE_URL:-http://10.10.1.55:11435}" \
+  -e "mc_ollama_model=${OLLAMA_MODEL:-qwen3.5:9b}" \
   -e "mc_github_token=${GITHUB_TOKEN:-}" \
   -e "mc_github_webhook_secret=${GITHUB_WEBHOOK_SECRET:-}" \
   -e "mc_github_default_repo=${GITHUB_DEFAULT_REPO:-erwinpangilinan-dot/kanban_dashboard}" \
