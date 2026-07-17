@@ -25,4 +25,5 @@ mc_github_auto_create: "true"
 mc_telegram_notify_on: completed,overdue,urgent
 mc_telegram_overdue_check_hours: 24
 mc_email_digest_cron: "0 8 * * 1-5"
+mc_ollama_base_url: "http://10.10.1.55:11435"
 mc_ollama_model: "qwen3.5:9b"
