@@ -433,6 +433,7 @@ function EmailPanel({
     try {
       await api.rejectEmailAgentDraft(id);
       await loadAgentReviews();
+      await loadMessages();
       setSelectedAgentReviewId(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to reject draft');

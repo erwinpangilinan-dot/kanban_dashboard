@@ -207,6 +207,21 @@ Analyze the difference and write a single, short sentence describing the user's 
 }
 
 async function rejectDraft(reviewId) {
+  const { rows } = await db.query(
+    'SELECT message_id FROM email_agent_reviews WHERE id = $1',
+    [reviewId]
+  );
+  if (!rows.length) throw new Error('Review record not found');
+  const review = rows[0];
+
+  // Trash the email message
+  try {
+    await workspaceEmail.deleteMessage(review.message_id);
+    console.log(`Trashed email message ${review.message_id} on reject`);
+  } catch (err) {
+    console.error(`Failed to trash email message ${review.message_id}:`, err.message);
+  }
+
   const { rowCount } = await db.query(
     "UPDATE email_agent_reviews SET status = 'rejected', updated_at = CURRENT_TIMESTAMP WHERE id = $1",
     [reviewId]
