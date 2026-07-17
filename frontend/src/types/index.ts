@@ -143,7 +143,7 @@ export interface WorkspaceStatus {
   enabled: boolean;
   email: boolean;
   calendar: boolean;
-  assistant: boolean;
+  assistant: 'ollama' | 'gemini' | boolean;
   account: string | null;
 }
 

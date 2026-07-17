@@ -47,13 +47,28 @@ async function requireAssistant(_req, res, next) {
 
 router.use(requireGoogle);
 
+async function getLlmProvider() {
+  try {
+    const { rows } = await db.query(
+      "SELECT value FROM workspace_settings WHERE key = 'email_agent_llm_provider'"
+    );
+    if (rows.length && rows[0].value === 'gemini') {
+      return 'gemini';
+    }
+  } catch (err) {
+    // defaults to ollama
+  }
+  return 'ollama';
+}
+
 router.get('/status', asyncHandler(async (_req, res) => {
+  const provider = await getLlmProvider();
   const assistantReady = await isLlmConfigured();
   res.json({
     enabled: true,
     email: true,
     calendar: true,
-    assistant: assistantReady,
+    assistant: assistantReady ? provider : false,
     account: accountEmail(),
   });
 }));

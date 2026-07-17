@@ -205,7 +205,7 @@ function EmailPanel({
   assistantEnabled,
 }: {
   refreshToken: number;
-  assistantEnabled: boolean;
+  assistantEnabled: 'ollama' | 'gemini' | boolean;
 }) {
   const [messages, setMessages] = useState<EmailSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -557,7 +557,7 @@ function EmailPanel({
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500/15 px-3 py-2 text-xs font-medium text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-50"
             >
               <Bot className="h-3.5 w-3.5" />
-              {triggeringScan ? 'Agent scanning inbox…' : 'Trigger agent scan now'}
+              {triggeringScan ? 'Agent scanning inbox…' : `Trigger agent scan now (${assistantEnabled === 'gemini' ? 'Gemini' : 'Ollama'})`}
             </button>
           )}
 
@@ -807,7 +807,7 @@ function EmailPanel({
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-accent uppercase tracking-wider block mb-1 flex items-center justify-between">
-                    <span>Proposed Reply Body (Editable)</span>
+                    <span>Proposed Reply Body (Editable - {assistantEnabled === 'gemini' ? 'Gemini' : 'Ollama'} active)</span>
                     <span className="text-[10px] text-emerald-400 normal-case">Memoria profile facts loaded</span>
                   </label>
                   <textarea
@@ -1147,7 +1147,7 @@ export function WorkspacePage({ refreshToken }: WorkspacePageProps) {
   const [tab, setTab] = useState<WorkspaceTab>('email');
   const [status, setStatus] = useState<{
     enabled: boolean;
-    assistant: boolean;
+    assistant: 'ollama' | 'gemini' | boolean;
     account: string | null;
   } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1192,7 +1192,9 @@ export function WorkspacePage({ refreshToken }: WorkspacePageProps) {
         <p className="text-sm text-gray-500">
           Connected as <span className="text-gray-300">{status.account}</span>
           {status.assistant && (
-            <span className="ml-2 text-accent-hover">· Assistant active (Ollama)</span>
+            <span className="ml-2 text-accent-hover">
+              · Assistant active ({status.assistant === 'gemini' ? 'Gemini' : 'Ollama'})
+            </span>
           )}
         </p>
       )}
