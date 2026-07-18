@@ -31,10 +31,10 @@
 
 @layer components {
   .glass-panel {
-    @apply bg-surface-glass backdrop-blur-xl border border-surface-border shadow-glass rounded-2xl;
+    @apply bg-surface-raised/40 backdrop-blur-2xl border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] rounded-2xl;
   }
   
   .glass-card {
-    @apply bg-surface-raised/60 backdrop-blur-md border border-white/5 shadow-card hover:shadow-elevated transition-all duration-300;
+    @apply bg-surface-raised/30 backdrop-blur-xl border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] hover:border-white/20 hover:shadow-[0_8px_30px_rgba(0,0,0,0.3),inset_0_1px_1px_rgba(255,255,255,0.25)] transition-all duration-300;
   }
 }
