@@ -135,7 +135,50 @@ export interface OverviewData {
   activity: ActivityItem[];
 }
 
-export type AppView = 'overview' | 'board' | 'workspace';
+export interface MemoriaNode {
+  id: string;
+  kind: 'entity' | 'memory';
+  label: string;
+  content?: string;
+  type: string;
+  importance?: 'low' | 'medium' | 'high';
+  vault_path?: string;
+  category: string;
+  valency: number;
+  needs_consolidation?: boolean;
+  cluster_id?: number;
+  created_at?: string;
+  x?: number;
+  y?: number;
+  vx?: number;
+  vy?: number;
+}
+
+export interface MemoriaEdge {
+  id: string;
+  source: string | MemoriaNode;
+  target: string | MemoriaNode;
+  from: string;
+  to: string;
+  kind: 'link' | 'cooccurrence' | string;
+  weight: number;
+  label?: string;
+}
+
+export interface MemoriaGraphData {
+  node_count: number;
+  edge_count: number;
+  cluster_count?: number;
+  consolidation_warnings_count?: number;
+  categories: string[];
+  nodes: MemoriaNode[];
+  edges: MemoriaEdge[];
+  error?: string;
+}
+
+
+export type AppView = 'overview' | 'board' | 'workspace' | 'memoria';
+
 
 export type WorkspaceTab = 'email' | 'calendar' | 'settings';
 

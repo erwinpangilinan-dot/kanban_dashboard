@@ -9,6 +9,8 @@ import { ProjectModal } from './components/ProjectModal';
 import { Sidebar } from './components/Sidebar';
 import { TaskModal } from './components/TaskModal';
 import { WorkspacePage } from './components/WorkspacePage';
+import { MemoriaGraphView } from './components/MemoriaGraphView';
+
 import { useAutoRefresh } from './hooks/useAutoRefresh';
 import { getAutoRefreshEnabled, setAutoRefreshEnabled } from './lib/autoRefresh';
 import { EMPTY_FILTERS, collectAssignees, filterColumns } from './lib/boardFilters';
@@ -155,6 +157,11 @@ export default function App() {
   function handleSelectWorkspace() {
     setView('workspace');
   }
+
+  function handleSelectMemoria() {
+    setView('memoria');
+  }
+
 
   function handleSelectProject(projectId: string) {
     setBoardFilters(EMPTY_FILTERS);
@@ -305,6 +312,7 @@ export default function App() {
         activeProjectId={activeProjectId}
         onSelectOverview={handleSelectOverview}
         onSelectWorkspace={handleSelectWorkspace}
+        onSelectMemoria={handleSelectMemoria}
         onSelectProject={handleSelectProject}
         onCreateProject={() => setShowProjectModal(true)}
       />
@@ -324,7 +332,7 @@ export default function App() {
           exporting={exporting}
         />
 
-        <main className="flex-1 overflow-auto p-6">
+        <main className={`flex-1 overflow-auto ${view === 'memoria' ? 'p-0' : 'p-6'}`}>
           {error && (
             <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
               {error}
@@ -345,7 +353,10 @@ export default function App() {
             />
           ) : view === 'workspace' ? (
             <WorkspacePage refreshToken={workspaceRefresh} />
+          ) : view === 'memoria' ? (
+            <MemoriaGraphView />
           ) : view === 'board' && boardData ? (
+
             <>
               <BoardFiltersBar
                 filters={boardFilters}

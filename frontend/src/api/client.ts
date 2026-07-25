@@ -19,7 +19,9 @@ import type {
   WorkspaceStatus,
   EmailAgentReview,
   WorkspaceSettings,
+  MemoriaGraphData,
 } from '../types';
+
 
 const BASE = '/api';
 
@@ -171,6 +173,21 @@ export const api = {
 
   getWorkspaceSettings: () =>
     request<WorkspaceSettings>('/workspace/settings'),
+
+  getMemoriaGraph: (params?: { category?: string; type?: string; query?: string; start_date?: string; end_date?: string; min_weight?: number; limit?: number }) => {
+    const search = new URLSearchParams();
+    if (params?.category) search.set('category', params.category);
+    if (params?.type) search.set('type', params.type);
+    if (params?.query) search.set('query', params.query);
+    if (params?.start_date) search.set('start_date', params.start_date);
+    if (params?.end_date) search.set('end_date', params.end_date);
+    if (params?.min_weight) search.set('min_weight', String(params.min_weight));
+    if (params?.limit) search.set('limit', String(params.limit));
+    const queryStr = search.toString() ? `?${search.toString()}` : '';
+    return request<MemoriaGraphData>(`/memoria/graph${queryStr}`);
+  },
+
+
 
   updateWorkspaceSettings: (settings: WorkspaceSettings) =>
     request<{ success: boolean }>('/workspace/settings', {

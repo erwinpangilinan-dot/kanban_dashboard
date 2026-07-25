@@ -34,13 +34,18 @@ export function Header({
       ? 'Overview'
       : view === 'workspace'
         ? 'Workspace'
-        : (project?.name ?? 'Board');
+        : view === 'memoria'
+          ? 'Memoria Graph View'
+          : (project?.name ?? 'Board');
   const subtitle =
     view === 'overview'
       ? 'Mission status across all projects'
       : view === 'workspace'
         ? 'Email and calendar in one place'
-        : project?.description;
+        : view === 'memoria'
+          ? 'Interactive relational knowledge network visualizer'
+          : project?.description;
+
 
   return (
     <header className="flex items-center justify-between border-b border-white/5 bg-surface-glass px-6 py-4 backdrop-blur-xl">

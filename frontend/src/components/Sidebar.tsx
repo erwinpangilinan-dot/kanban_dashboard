@@ -1,4 +1,4 @@
-import { LayoutDashboard, Mail, Plus, Rocket } from 'lucide-react';
+import { Brain, LayoutDashboard, Mail, Plus, Rocket } from 'lucide-react';
 import type { AppView, Project } from '../types';
 
 interface SidebarProps {
@@ -7,6 +7,7 @@ interface SidebarProps {
   activeProjectId: string | null;
   onSelectOverview: () => void;
   onSelectWorkspace: () => void;
+  onSelectMemoria: () => void;
   onSelectProject: (id: string) => void;
   onCreateProject: () => void;
 }
@@ -17,6 +18,7 @@ export function Sidebar({
   activeProjectId,
   onSelectOverview,
   onSelectWorkspace,
+  onSelectMemoria,
   onSelectProject,
   onCreateProject,
 }: SidebarProps) {
@@ -36,7 +38,7 @@ export function Sidebar({
         <button
           type="button"
           onClick={onSelectOverview}
-          className={`mb-3 flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+          className={`mb-1.5 flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
             view === 'overview'
               ? 'bg-accent/15 font-medium text-accent-hover'
               : 'text-gray-400 hover:bg-surface-overlay hover:text-gray-200'
@@ -49,7 +51,7 @@ export function Sidebar({
         <button
           type="button"
           onClick={onSelectWorkspace}
-          className={`mb-3 flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+          className={`mb-1.5 flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
             view === 'workspace'
               ? 'bg-accent/15 font-medium text-accent-hover'
               : 'text-gray-400 hover:bg-surface-overlay hover:text-gray-200'
@@ -58,6 +60,20 @@ export function Sidebar({
           <Mail className="h-4 w-4 shrink-0" />
           Workspace
         </button>
+
+        <button
+          type="button"
+          onClick={onSelectMemoria}
+          className={`mb-3 flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+            view === 'memoria'
+              ? 'bg-cyan-500/20 font-medium text-cyan-400 border border-cyan-500/30'
+              : 'text-gray-400 hover:bg-surface-overlay hover:text-gray-200'
+          }`}
+        >
+          <Brain className="h-4 w-4 shrink-0 text-cyan-400" />
+          Memoria Graph
+        </button>
+
 
         <div className="mb-2 flex items-center justify-between px-2">
           <span className="text-[11px] font-semibold uppercase tracking-widest text-gray-600">
