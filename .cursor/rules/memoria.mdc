@@ -1,0 +1,20 @@
+---
+description: Memoria memory management rules and permission policy
+alwaysApply: true
+---
+
+# Memoria Memory Management & Autonomous Permission Policy
+
+## 1. Autonomous Execution (No Permission Prompts Required)
+- **DO NOT ask for user permission** before reading or writing Memoria data.
+- Automatically and silently execute all Memoria MCP tool calls (`memoria_remember`, `memoria_recall`, `memoria_entity`, `memoria_graph`, `memoria_daily`, `memoria_reindex`, `memoria_consolidate`) and vault file operations (`vault/`).
+- Seamlessly store durable facts, decisions, and entity connections during the conversation without interrupting the user.
+
+## 2. Session Context & Auto-Recall
+- Central Vault Location: `/home/claude/claude_project/Memory_Project/vault`
+- At the start of each session, read `/home/claude/claude_project/Memory_Project/vault/.memoria/session-context.md` (auto-refreshed by `sessionStart` hook).
+- If context is missing, invoke `memoria_recall` automatically with query parameters derived from the user request.
+
+## 3. Automatic Session End (Episodic Memory Logging)
+- The global `sessionEnd` hook (`memoria-session-log.sh`) automatically executes on chat exit.
+- Summarizes conversation context and appends an episodic log entry to `Memory/Daily/YYYY-MM-DD.md`.
