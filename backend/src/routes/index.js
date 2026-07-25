@@ -484,7 +484,9 @@ router.post('/boards/:boardId/columns', asyncHandler(async (req, res) => {
 
 
 router.get('/memoria/graph', asyncHandler(async (req, res) => {
-  const memoriaUrl = new URL('http://127.0.0.1:8765/graph');
+  const baseUrl = (process.env.MEMORIA_API_URL || 'http://127.0.0.1:8765').replace(/\/$/, '');
+  const memoriaUrl = new URL(baseUrl.endsWith('/graph') ? baseUrl : `${baseUrl}/graph`);
+
   if (req.query.category) memoriaUrl.searchParams.set('category', String(req.query.category));
   if (req.query.type) memoriaUrl.searchParams.set('type', String(req.query.type));
   if (req.query.query) memoriaUrl.searchParams.set('query', String(req.query.query));
