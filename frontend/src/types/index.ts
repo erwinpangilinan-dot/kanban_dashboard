@@ -180,7 +180,58 @@ export interface MemoriaGraphData {
 export type AppView = 'overview' | 'board' | 'workspace' | 'memoria';
 
 
-export type WorkspaceTab = 'email' | 'calendar' | 'settings';
+export type WorkspaceTab = 'email' | 'calendar' | 'workflows' | 'settings';
+
+export interface WorkspaceSettings {
+  email_agent_llm_provider: 'ollama' | 'gemini';
+  gemini_api_key?: string;
+}
+
+export interface EmailWorkflow {
+  id: string;
+  name: string;
+  description?: string | null;
+  is_active: boolean;
+  trigger_category?: 'important' | 'advertisement' | 'junk' | 'information' | 'any';
+  trigger_sender?: string | null;
+  trigger_keyword?: string | null;
+  action_auto_reply: boolean;
+  reply_template?: string | null;
+  action_trash_email: boolean;
+  action_create_task: boolean;
+  task_project_id?: string | null;
+  task_title_template?: string | null;
+  action_notify_telegram: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateEmailWorkflowInput {
+  name: string;
+  description?: string;
+  is_active?: boolean;
+  trigger_category?: string;
+  trigger_sender?: string;
+  trigger_keyword?: string;
+  action_auto_reply?: boolean;
+  reply_template?: string;
+  action_trash_email?: boolean;
+  action_create_task?: boolean;
+  task_project_id?: string;
+  task_title_template?: string;
+  action_notify_telegram?: boolean;
+}
+
+export interface EmailWorkflowLog {
+  id: string;
+  workflow_id: string;
+  workflow_name?: string | null;
+  message_id: string;
+  subject?: string | null;
+  from_address?: string | null;
+  actions_taken: string[];
+  created_at: string;
+}
 
 export interface WorkspaceStatus {
   enabled: boolean;

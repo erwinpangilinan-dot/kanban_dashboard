@@ -19,6 +19,9 @@ import type {
   WorkspaceStatus,
   EmailAgentReview,
   WorkspaceSettings,
+  EmailWorkflow,
+  CreateEmailWorkflowInput,
+  EmailWorkflowLog,
   MemoriaGraphData,
 } from '../types';
 
@@ -173,6 +176,27 @@ export const api = {
 
   getWorkspaceSettings: () =>
     request<WorkspaceSettings>('/workspace/settings'),
+
+  getEmailWorkflows: () =>
+    request<EmailWorkflow[]>('/workspace/email/workflows'),
+
+  createEmailWorkflow: (data: CreateEmailWorkflowInput) =>
+    request<EmailWorkflow>('/workspace/email/workflows', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updateEmailWorkflow: (id: string, data: Partial<CreateEmailWorkflowInput>) =>
+    request<EmailWorkflow>(`/workspace/email/workflows/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  deleteEmailWorkflow: (id: string) =>
+    request<{ success: boolean }>(`/workspace/email/workflows/${id}`, { method: 'DELETE' }),
+
+  getEmailWorkflowLogs: (limit = 50) =>
+    request<EmailWorkflowLog[]>(`/workspace/email/workflows/logs?limit=${limit}`),
 
   getMemoriaGraph: (params?: { category?: string; type?: string; query?: string; start_date?: string; end_date?: string; min_weight?: number; limit?: number }) => {
     const search = new URLSearchParams();

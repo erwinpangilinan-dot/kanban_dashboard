@@ -10,7 +10,9 @@ import {
   Sparkles,
   Trash2,
   Settings,
+  Zap,
 } from 'lucide-react';
+import { WorkspaceWorkflows } from './WorkspaceWorkflows';
 import { api } from '../api/client';
 import type {
   CalendarEvent,
@@ -1231,6 +1233,18 @@ export function WorkspacePage({ refreshToken }: WorkspacePageProps) {
         </button>
         <button
           type="button"
+          onClick={() => setTab('workflows')}
+          className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+            tab === 'workflows'
+              ? 'bg-accent/15 text-accent-hover'
+              : 'text-gray-400 hover:bg-surface-overlay hover:text-gray-200'
+          }`}
+        >
+          <Zap className="h-4 w-4 text-accent" />
+          Workflows
+        </button>
+        <button
+          type="button"
           onClick={() => setTab('settings')}
           className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
             tab === 'settings'
@@ -1247,6 +1261,8 @@ export function WorkspacePage({ refreshToken }: WorkspacePageProps) {
         <EmailPanel refreshToken={refreshToken} assistantEnabled={status.assistant} />
       ) : tab === 'calendar' ? (
         <CalendarPanel refreshToken={refreshToken} />
+      ) : tab === 'workflows' ? (
+        <WorkspaceWorkflows />
       ) : (
         <SettingsPanel />
       )}

@@ -8,6 +8,7 @@ const workspaceEmail = require('../services/workspace-email');
 const workspaceCalendar = require('../services/workspace-calendar');
 const emailAssistant = require('../services/email-assistant');
 const emailAgent = require('../services/email-agent');
+const emailWorkflows = require('../services/email-workflows');
 
 const router = express.Router();
 
@@ -217,6 +218,29 @@ router.post('/settings', asyncHandler(async (req, res) => {
   }
 
   res.json({ success: true });
+}));
+
+// ── Email Agent Workflow Automation ───────────────────────────────────────────
+
+router.get('/email/workflows', asyncHandler(async (_req, res) => {
+  res.json(await emailWorkflows.getWorkflows());
+}));
+
+router.post('/email/workflows', asyncHandler(async (req, res) => {
+  res.status(201).json(await emailWorkflows.createWorkflow(req.body));
+}));
+
+router.put('/email/workflows/:id', asyncHandler(async (req, res) => {
+  res.json(await emailWorkflows.updateWorkflow(req.params.id, req.body));
+}));
+
+router.delete('/email/workflows/:id', asyncHandler(async (req, res) => {
+  res.json(await emailWorkflows.deleteWorkflow(req.params.id));
+}));
+
+router.get('/email/workflows/logs', asyncHandler(async (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 50, 100);
+  res.json(await emailWorkflows.getWorkflowLogs(limit));
 }));
 
 module.exports = router;

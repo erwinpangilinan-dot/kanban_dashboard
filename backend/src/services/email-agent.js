@@ -2,6 +2,7 @@ const db = require('../db');
 const ollama = require('./ollama');
 const gemini = require('./gemini');
 const workspaceEmail = require('./workspace-email');
+const emailWorkflows = require('./email-workflows');
 const { isConfigured: isGoogleConfigured } = require('./google-auth');
 
 async function getLlmProvider() {
@@ -144,6 +145,16 @@ ${mergedFacts || '- Erwin Pangilinan is an Engineer.'}
     );
 
     console.log(`Processed email agent review for message ${fullMsg.id} (${category})`);
+
+    // 4. Evaluate automated workflows
+    try {
+      const executedWorkflows = await emailWorkflows.evaluateWorkflowsForEmail(fullMsg, category, bodySnippet);
+      if (executedWorkflows.length > 0) {
+        console.log(`Executed ${executedWorkflows.length} workflows for message ${fullMsg.id}`);
+      }
+    } catch (wfErr) {
+      console.error(`Workflow evaluation error for ${fullMsg.id}:`, wfErr.message);
+    }
   } catch (err) {
     console.error(`Failed to process email agent review for ${fullMsg.id}:`, err.message);
   }
