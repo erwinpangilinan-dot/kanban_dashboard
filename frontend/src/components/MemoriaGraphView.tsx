@@ -20,8 +20,8 @@ import type { MemoriaGraphData, MemoriaNode } from '../types';
 const CATEGORY_COLORS: Record<string, string> = {
   Entity: '#38bdf8', // Cyan
   Facts: '#ef4444', // Red
-  People: '#22c55e', // Green
-  Projects: '#a855f7', // Purple
+  Episodes: '#22c55e', // Green
+  Entities: '#a855f7', // Purple
   Daily: '#ec4899', // Pink
   Zettels: '#f59e0b', // Amber
   General: '#94a3b8', // Slate
@@ -619,7 +619,7 @@ export function MemoriaGraphView() {
               <Filter className="h-3.5 w-3.5 text-cyan-400" /> Categories / Groups
             </label>
             <div className="flex flex-wrap gap-1">
-              {['All', 'Entity', 'Facts', 'People', 'Projects', 'Daily'].map((cat) => {
+              {['All', 'Entity', 'Facts', 'Episodes', 'Daily'].map((cat) => {
                 const color = CATEGORY_COLORS[cat] || '#38bdf8';
                 const isSelected = selectedCategory === cat;
                 return (

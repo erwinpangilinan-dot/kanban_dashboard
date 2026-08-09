@@ -32,6 +32,7 @@ Salience gate rejects low-value noise. If `stored: false` with `reason: below_th
 
 - `[[Sarah]]` links a memory to entity `sarah`
 - `[[kitchen counter]]` works for places/topics
+- Without wikilinks the server guesses entities from Title Case prose, which is lossy on technical text. Pass `infer_entities: false` for bulk or machine-generated documents and name the entities yourself.
 - Salience keywords (`birthday`, `prefers`, `allergic`, `allergy`, `prefers`, `favorite`, `favourite`, `never forget`, `important`, `deadline`, …) boost storage without `force`
 
 ## Workflows
@@ -79,7 +80,7 @@ Use when setup is new or recall returns nothing unexpectedly.
 
 ## Vault UX (Phase 4)
 
-- **Episodic** memories append to `Memory/Daily/YYYY-MM-DD.md` and get entity pages under `People/` or `Projects/`
+- **Episodic** memories append to `Memory/Daily/YYYY-MM-DD.md`; entities get pages under `Entities/`
 - **`.memoriaignore`** at vault root excludes paths from `memoria_reindex` (see `vault/.memoriaignore.example`)
 - **Session hooks** — global `~/.cursor/hooks.json` via `scripts/install-global-cursor.sh`; `sessionStart` auto-recalls into `vault/.memoria/session-context.md`; `sessionEnd` logs daily note
 - Run **`memoria_consolidate`** periodically (`dry_run: false` to apply)
