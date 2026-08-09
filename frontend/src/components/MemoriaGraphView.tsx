@@ -44,11 +44,45 @@ interface SimLink {
   label?: string;
 }
 
+const TUNING_STORAGE_KEY = 'mc_memoria_graph_tuning';
+
+const DEFAULT_TUNING = {
+  showArrows: false,
+  textThreshold: 1.2,
+  nodeSizeScale: 1.0,
+  linkThicknessScale: 1.0,
+  centerForce: 0.05,
+  repelForce: 120,
+  linkForce: 0.08,
+};
+
+type GraphTuning = typeof DEFAULT_TUNING;
+
+function loadGraphTuning(): GraphTuning {
+  try {
+    const raw = localStorage.getItem(TUNING_STORAGE_KEY);
+    if (!raw) return { ...DEFAULT_TUNING };
+    const parsed = JSON.parse(raw) as Partial<GraphTuning>;
+    return {
+      showArrows: Boolean(parsed.showArrows ?? DEFAULT_TUNING.showArrows),
+      textThreshold: Number(parsed.textThreshold) || DEFAULT_TUNING.textThreshold,
+      nodeSizeScale: Number(parsed.nodeSizeScale) || DEFAULT_TUNING.nodeSizeScale,
+      linkThicknessScale: Number(parsed.linkThicknessScale) || DEFAULT_TUNING.linkThicknessScale,
+      centerForce: Number(parsed.centerForce) || DEFAULT_TUNING.centerForce,
+      repelForce: Number(parsed.repelForce) || DEFAULT_TUNING.repelForce,
+      linkForce: Number(parsed.linkForce) || DEFAULT_TUNING.linkForce,
+    };
+  } catch {
+    return { ...DEFAULT_TUNING };
+  }
+}
+
 export function MemoriaGraphView() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [data, setData] = useState<MemoriaGraphData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [tuning] = useState(loadGraphTuning);
 
   // Filters & Controls state
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,19 +90,38 @@ export function MemoriaGraphView() {
   const [selectedType, setSelectedType] = useState<string>('All');
   const [timePreset, setTimePreset] = useState<'all' | '7d' | '30d'>('all');
 
-
-
   // Display Sliders
-  const [showArrows, setShowArrows] = useState(false);
-  const [textThreshold, setTextThreshold] = useState(1.2);
-  const [nodeSizeScale, setNodeSizeScale] = useState(1.0);
-  const [linkThicknessScale, setLinkThicknessScale] = useState(1.0);
+  const [showArrows, setShowArrows] = useState(tuning.showArrows);
+  const [textThreshold, setTextThreshold] = useState(tuning.textThreshold);
+  const [nodeSizeScale, setNodeSizeScale] = useState(tuning.nodeSizeScale);
+  const [linkThicknessScale, setLinkThicknessScale] = useState(tuning.linkThicknessScale);
   const [isAnimated, setIsAnimated] = useState(true);
 
   // Forces Sliders
-  const [centerForce, setCenterForce] = useState(0.05);
-  const [repelForce, setRepelForce] = useState(120);
-  const [linkForce, setLinkForce] = useState(0.08);
+  const [centerForce, setCenterForce] = useState(tuning.centerForce);
+  const [repelForce, setRepelForce] = useState(tuning.repelForce);
+  const [linkForce, setLinkForce] = useState(tuning.linkForce);
+
+  useEffect(() => {
+    const next: GraphTuning = {
+      showArrows,
+      textThreshold,
+      nodeSizeScale,
+      linkThicknessScale,
+      centerForce,
+      repelForce,
+      linkForce,
+    };
+    localStorage.setItem(TUNING_STORAGE_KEY, JSON.stringify(next));
+  }, [
+    showArrows,
+    textThreshold,
+    nodeSizeScale,
+    linkThicknessScale,
+    centerForce,
+    repelForce,
+    linkForce,
+  ]);
 
   // Selection & Hover
   const [selectedNode, setSelectedNode] = useState<SimNode | null>(null);
