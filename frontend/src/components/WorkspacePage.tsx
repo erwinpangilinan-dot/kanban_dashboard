@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { WorkspaceWorkflows } from './WorkspaceWorkflows';
 import { api } from '../api/client';
+import { beginGoogleReauth } from '../lib/google-reauth';
 import type {
   CalendarEvent,
   CreateCalendarEventInput,
@@ -184,20 +185,65 @@ function AssistantReviewCard({
   );
 }
 
+function isGoogleTokenError(message: string | null | undefined) {
+  if (!message) return false;
+  return (
+    message.includes('token refresh failed')
+    || message.includes('invalid_grant')
+    || message.includes('not configured')
+    || message.includes('GOOGLE_TOKEN_INVALID')
+  );
+}
+
+function ReauthButton({ label = 'Re-authenticate with Google' }: { label?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={beginGoogleReauth}
+      className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
+    >
+      {label}
+    </button>
+  );
+}
+
 function SetupNotice() {
   return (
     <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-6 text-sm text-amber-100">
       <p className="font-medium">Google Workspace not configured</p>
       <p className="mt-2 text-amber-100/80">
-        Set <code className="rounded bg-black/20 px-1">GOOGLE_CLIENT_ID</code>,{' '}
-        <code className="rounded bg-black/20 px-1">GOOGLE_CLIENT_SECRET</code>, and{' '}
-        <code className="rounded bg-black/20 px-1">GOOGLE_REFRESH_TOKEN</code> in{' '}
-        <code className="rounded bg-black/20 px-1">.env</code>, then restart the API.
+        Client ID and secret must be set in <code className="rounded bg-black/20 px-1">.env</code>.
+        Then connect your Google account — the refresh token is saved automatically.
       </p>
-      <p className="mt-2 text-amber-100/70">
-        Authenticate via the Google Workspace MCP, then run{' '}
-        <code className="rounded bg-black/20 px-1">npm run sync:google-token --prefix backend</code>.
+      <div className="mt-4">
+        <ReauthButton />
+      </div>
+      <p className="mt-3 text-xs text-amber-100/60">
+        In Google Cloud Console, add this redirect URI to your OAuth client:{' '}
+        <code className="rounded bg-black/20 px-1">
+          {`${window.location.origin}/api/workspace/oauth/callback`}
+        </code>
       </p>
+    </div>
+  );
+}
+
+function TokenErrorBanner({ message }: { message: string }) {
+  if (!isGoogleTokenError(message)) {
+    return (
+      <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+        {message}
+      </p>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100">
+      <p className="font-medium">Google connection needs attention</p>
+      <p className="mt-1 text-red-100/80">{message}</p>
+      <div className="mt-3">
+        <ReauthButton label="Re-authenticate" />
+      </div>
     </div>
   );
 }
@@ -684,9 +730,9 @@ function EmailPanel({
 
       <div className="rounded-xl border border-surface-border bg-surface-raised p-5 shadow-card">
         {error && (
-          <p className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-            {error}
-          </p>
+          <div className="mb-3">
+            <TokenErrorBanner message={error} />
+          </div>
         )}
 
         {viewMode === 'inbox' ? (
@@ -927,11 +973,7 @@ function CalendarPanel({ refreshToken }: { refreshToken: number }) {
         </button>
       </div>
 
-      {error && (
-        <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-          {error}
-        </p>
-      )}
+      {error && <TokenErrorBanner message={error} />}
 
       {showForm && (
         <form
@@ -1086,12 +1128,21 @@ function SettingsPanel() {
   }
 
   return (
-    <div className="max-w-md rounded-xl border border-surface-border bg-surface-raised p-6 shadow-card">
+    <div className="max-w-md space-y-4">
+      <div className="rounded-xl border border-surface-border bg-surface-raised p-6 shadow-card">
+        <h3 className="mb-2 text-lg font-semibold text-white">Google account</h3>
+        <p className="mb-4 text-sm text-gray-400">
+          If Gmail or Calendar shows an expired-token error, reconnect here. A new refresh token is saved automatically.
+        </p>
+        <ReauthButton />
+      </div>
+
+      <div className="rounded-xl border border-surface-border bg-surface-raised p-6 shadow-card">
       <h3 className="text-lg font-semibold text-white mb-4">Workspace Settings</h3>
       {error && (
-        <p className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-          {error}
-        </p>
+        <div className="mb-3">
+          <TokenErrorBanner message={error} />
+        </div>
       )}
       {success && (
         <p className="mb-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
@@ -1141,6 +1192,7 @@ function SettingsPanel() {
           {saving ? 'Saving…' : 'Save Settings'}
         </button>
       </form>
+      </div>
     </div>
   );
 }
@@ -1154,6 +1206,23 @@ export function WorkspacePage({ refreshToken }: WorkspacePageProps) {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [oauthNotice, setOauthNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('mc_oauth_result');
+      if (!raw) return;
+      sessionStorage.removeItem('mc_oauth_result');
+      const result = JSON.parse(raw) as { status?: string; message?: string | null };
+      if (result.status === 'ok') {
+        setOauthNotice('Google account connected. Refresh token updated.');
+      } else if (result.status === 'error') {
+        setOauthNotice(result.message || 'Google authentication failed.');
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -1200,11 +1269,17 @@ export function WorkspacePage({ refreshToken }: WorkspacePageProps) {
           )}
         </p>
       )}
-      {error && (
-        <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-          {error}
+      {oauthNotice && (
+        <p className={`rounded-lg border px-3 py-2 text-sm ${
+          oauthNotice.includes('failed') || oauthNotice.includes('Invalid')
+            ? 'border-red-500/30 bg-red-500/10 text-red-300'
+            : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+        }`}
+        >
+          {oauthNotice}
         </p>
       )}
+      {error && <TokenErrorBanner message={error} />}
 
       <div className="flex gap-2">
         <button

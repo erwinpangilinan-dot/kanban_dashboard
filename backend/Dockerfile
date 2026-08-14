@@ -3,7 +3,11 @@ FROM node:20-alpine
 WORKDIR /app
 
 COPY backend/package*.json ./
-RUN npm ci --omit=dev
+RUN apk add --no-cache iputils curl ipmitool \
+  && KVER=$(curl -fsSL https://dl.k8s.io/release/stable.txt) \
+  && curl -fsSL "https://dl.k8s.io/release/${KVER}/bin/linux/amd64/kubectl" -o /usr/local/bin/kubectl \
+  && chmod +x /usr/local/bin/kubectl \
+  && npm ci --omit=dev
 
 COPY backend/src ./src
 COPY database ./database

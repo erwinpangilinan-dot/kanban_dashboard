@@ -18,11 +18,15 @@ import { TaskCard } from './TaskCard';
 
 interface KanbanBoardProps {
   columns: Column[];
+  canWrite?: boolean;
   onColumnsChange: (columns: Column[]) => void;
   onMoveTask: (taskId: string, columnId: string, position: number) => void;
   onAddTask: (columnId: string, title: string) => Promise<void>;
   onTaskClick: (task: Task) => void;
 }
+
+// Stable reference so swapping it in does not re-render DndContext every pass.
+const NO_SENSORS: ReturnType<typeof useSensors> = [];
 
 function findColumn(columns: Column[], id: string): Column | undefined {
   if (columns.some((c) => c.id === id)) {
@@ -39,6 +43,7 @@ function resolveDropColumn(columns: Column[], over: Over): Column | undefined {
 
 export function KanbanBoard({
   columns,
+  canWrite = true,
   onColumnsChange,
   onMoveTask,
   onAddTask,
@@ -132,7 +137,9 @@ export function KanbanBoard({
 
   return (
     <DndContext
-      sensors={sensors}
+      // No sensors means read-only users cannot start a drag, so the board never
+      // shows a move the API would reject.
+      sensors={canWrite ? sensors : NO_SENSORS}
       collisionDetection={pointerWithin}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
@@ -142,6 +149,7 @@ export function KanbanBoard({
           <KanbanColumn
             key={column.id}
             column={column}
+            canWrite={canWrite}
             onTaskClick={onTaskClick}
             onAddTask={onAddTask}
           />

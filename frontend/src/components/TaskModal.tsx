@@ -8,6 +8,7 @@ interface TaskModalProps {
   task: Task;
   projectId: string;
   projectLabels: Label[];
+  canWrite?: boolean;
   onClose: () => void;
   onSave: (taskId: string, data: UpdateTaskInput) => Promise<void>;
   onDelete: (taskId: string) => Promise<void>;
@@ -22,6 +23,7 @@ export function TaskModal({
   task,
   projectId,
   projectLabels,
+  canWrite = true,
   onClose,
   onSave,
   onDelete,
@@ -144,7 +146,9 @@ export function TaskModal({
           </button>
         </div>
 
-        <div className="space-y-4 p-5">
+        {/* Disabling the fieldset covers every field at once, so a read-only
+            account sees the task without any editable control. */}
+        <fieldset disabled={!canWrite} className="space-y-4 p-5">
           <div>
             <label className="mb-1.5 block text-xs font-medium text-gray-500">Title</label>
             <input
@@ -302,18 +306,22 @@ export function TaskModal({
               )}
             </div>
           )}
-        </div>
+        </fieldset>
 
         <div className="flex items-center justify-between border-t border-surface-border px-5 py-4">
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={deleting}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50"
-          >
-            <Trash2 className="h-4 w-4" />
-            Delete
-          </button>
+          {canWrite ? (
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete
+            </button>
+          ) : (
+            <span className="text-xs text-gray-600">Read-only access</span>
+          )}
 
           <div className="flex gap-2">
             <button
@@ -321,16 +329,18 @@ export function TaskModal({
               onClick={onClose}
               className="rounded-lg px-4 py-2 text-sm text-gray-400 hover:text-gray-200"
             >
-              Cancel
+              {canWrite ? 'Cancel' : 'Close'}
             </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={!title.trim() || saving}
-              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
-            >
-              {saving ? 'Saving...' : 'Save Changes'}
-            </button>
+            {canWrite && (
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={!title.trim() || saving}
+                className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+              >
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
+            )}
           </div>
         </div>
       </div>

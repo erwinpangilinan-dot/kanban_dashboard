@@ -6,3 +6,10 @@ ansible/group_vars/mission_control/vault.yml
 .DS_Store
 .claude/
 *.tsbuildinfo
+scripts/mop/out/
+logs/
+
+# Cluster credentials — kubeconfigs embed client certs and keys
+*.kubeconfig
+kubeconfig
+secrets/

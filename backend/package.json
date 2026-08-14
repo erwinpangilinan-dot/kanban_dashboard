@@ -6,8 +6,10 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
+    "test": "node --test \"tests/**/*.test.js\"",
     "migrate": "node -e \"require('dotenv').config({path:'../.env'}); require('./src/migrate').migrate().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); })\"",
     "seed": "node -e \"require('dotenv').config({path:'../.env'}); require('./src/seed').seed().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); })\"",
+    "user:reset-password": "node scripts/reset-user-password.js",
     "verify:auth": "node scripts/verify-auth.js",
     "verify:notify": "node scripts/verify-notify.js",
     "verify:github": "node scripts/verify-github.js",
@@ -21,6 +23,13 @@
     "cors": "^2.8.6",
     "dotenv": "^16.4.7",
     "express": "^5.2.1",
-    "pg": "^8.13.1"
+    "express-rate-limit": "^8.6.2",
+    "helmet": "^8.3.0",
+    "mammoth": "^1.12.0",
+    "multer": "^2.2.0",
+    "pdf-parse": "^2.4.5",
+    "pg": "^8.13.1",
+    "ssh2": "^1.17.0",
+    "word-extractor": "^1.0.4"
   }
 }

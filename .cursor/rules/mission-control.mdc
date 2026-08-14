@@ -1,0 +1,21 @@
+---
+description: Always track features and enhancements on production Mission Control
+alwaysApply: true
+---
+
+# Mission Control task tracking (required)
+
+Production Mission Control (**http://10.10.50.6**) is the **source of truth** for project/task tracking. Local Docker is not.
+
+## Required behavior
+
+For **any feature, enhancement, bugfix, or milestone** you implement or agree to:
+
+1. Read the **mission-control** skill and update the matching project board on production.
+2. Prefer mission-control MCP; if MCP is down, use REST `http://10.10.50.6/api` with `AUTH_API_TOKEN` / `MISSION_CONTROL_API_TOKEN` from `.env` (never print the token).
+3. **Start work** → create or move a task to **In Progress**.
+4. **Ship / finish** → move to **Done** (or create a Done task if none existed). Add a short description of what shipped.
+5. **Follow-ups / next ideas** → add **Backlog** or **To Do** tasks so they stay visible.
+6. Confirm the board change briefly to the user (project name + task title + column).
+
+Do **not** skip board updates because the user did not explicitly ask. Tracking is part of delivering the work.

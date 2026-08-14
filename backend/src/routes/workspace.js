@@ -1,7 +1,7 @@
 const express = require('express');
 const { asyncHandler } = require('../middleware/errorHandler');
 const db = require('../db');
-const { isConfigured, accountEmail } = require('../services/google-auth');
+const { isConfigured, accountEmail, hydrateFromDb } = require('../services/google-auth');
 const ollama = require('../services/ollama');
 const gemini = require('../services/gemini');
 const workspaceEmail = require('../services/workspace-email');
@@ -16,6 +16,8 @@ function requireGoogle(_req, res, next) {
   if (!isConfigured()) {
     return res.status(503).json({
       error: 'Google Workspace is not configured. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN.',
+      code: 'GOOGLE_NOT_CONFIGURED',
+      reauth_url: '/api/workspace/oauth/start',
     });
   }
   return next();
@@ -63,6 +65,7 @@ async function getLlmProvider() {
 }
 
 router.get('/status', asyncHandler(async (_req, res) => {
+  await hydrateFromDb();
   const provider = await getLlmProvider();
   const assistantReady = await isLlmConfigured();
   res.json({
@@ -71,6 +74,7 @@ router.get('/status', asyncHandler(async (_req, res) => {
     calendar: true,
     assistant: assistantReady ? provider : false,
     account: accountEmail(),
+    reauth_url: '/api/workspace/oauth/start',
   });
 }));
 

@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "mission-control": {
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "mcp/run.ps1"
+      ]
+    },
+    "google-workspace": {
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "mcp/run-google-workspace.ps1"
+      ]
+    }
+  }
+}

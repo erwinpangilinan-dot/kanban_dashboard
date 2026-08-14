@@ -4,13 +4,13 @@ services:
     container_name: mission_control_db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: kanban
-      POSTGRES_PASSWORD: kanban
-      POSTGRES_DB: mission_control
+      POSTGRES_USER: ${POSTGRES_USER:-kanban}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kanban}
+      POSTGRES_DB: ${POSTGRES_DB:-mission_control}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kanban -d mission_control"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-kanban} -d $${POSTGRES_DB:-mission_control}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -22,9 +22,18 @@ services:
     container_name: mission_control_api
     restart: unless-stopped
     env_file:
-      - .env
+      # raw: Compose otherwise treats $ in a value as a variable reference and
+      # substitutes an empty string, which silently truncated two passwords that
+      # legitimately contain one. Escaping them as $$ would fix the container but
+      # corrupt the same values for the host scripts that read this file directly.
+      - path: .env
+        format: raw
+    volumes:
+      # Mount only the kubeconfig directory, not the whole repo (which would put
+      # .env and every source file inside the container).
+      - ./secrets/kubeconfigs:/app/kubeconfigs:ro
     environment:
-      DATABASE_URL: postgresql://kanban:kanban@postgres:5432/mission_control
+      DATABASE_URL: postgresql://${POSTGRES_USER:-kanban}:${POSTGRES_PASSWORD:-kanban}@postgres:5432/${POSTGRES_DB:-mission_control}
       PORT: 3001
       NODE_ENV: production
       MIGRATIONS_DIR: /app/database/migrations
@@ -50,13 +59,14 @@ services:
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11435}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-}
       OLLAMA_TIMEOUT_MS: ${OLLAMA_TIMEOUT_MS:-120000}
-      MEMORIA_API_URL: ${MEMORIA_API_URL:-http://host.docker.internal:8765}
+      MEMORIA_API_URL: ${MEMORIA_API_URL:-http://10.10.50.2:8765}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
 
       GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
       GITHUB_DEFAULT_REPO: ${GITHUB_DEFAULT_REPO:-}
       GITHUB_AUTO_CREATE: ${GITHUB_AUTO_CREATE:-true}
       MISSION_CONTROL_PUBLIC_URL: ${MISSION_CONTROL_PUBLIC_URL:-http://localhost}
+      NETWORK_HOST_AGENT_TOKEN: ${NETWORK_HOST_AGENT_TOKEN:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -75,6 +85,26 @@ services:
       - "80:80"
     depends_on:
       - api
+
+  # Publishes the dashboard on a public hostname without opening any inbound
+  # port: cloudflared dials out to Cloudflare and traffic returns through that
+  # connection. Opt in with `--profile cloudflare`, and point the tunnel's
+  # public hostname at http://web:8080 (the tunnel-only listener).
+  #
+  # Note the token is not marked required here, because Compose interpolates
+  # this file for every command — a required marker would break plain `up`.
+  # cloudflared exits with a clear error when it is missing.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: mission_control_tunnel
+    restart: unless-stopped
+    profiles:
+      - cloudflare
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      - web
 
   # ponytail: Ollama binds 127.0.0.1 on the host; expose via socat for Docker API access
   ollama-proxy:

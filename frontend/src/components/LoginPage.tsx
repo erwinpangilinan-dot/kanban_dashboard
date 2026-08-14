@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { api, setToken } from '../api/client';
+import type { CurrentUser } from '../types';
 
 interface LoginPageProps {
-  onSuccess: (username: string) => void;
+  onSuccess: (user: CurrentUser) => void;
 }
 
 export function LoginPage({ onSuccess }: LoginPageProps) {
@@ -24,7 +25,13 @@ export function LoginPage({ onSuccess }: LoginPageProps) {
         return;
       }
       setToken(result.token);
-      onSuccess(result.username || username.trim());
+      onSuccess({
+        username: result.username || username.trim(),
+        role: result.role ?? 'viewer',
+        views: result.views ?? [],
+        can_write: result.can_write ?? false,
+        is_admin: result.is_admin ?? false,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {

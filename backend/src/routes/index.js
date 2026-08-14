@@ -117,6 +117,7 @@ router.post('/projects', asyncHandler(async (req, res) => {
 router.use(require('./overview'));
 router.use('/ops', require('./ops'));
 router.use('/workspace', require('./workspace'));
+router.use('/network', require('./network'));
 
 router.get('/github/status', asyncHandler(async (_req, res) => {
   res.json({
@@ -479,48 +480,8 @@ router.post('/boards/:boardId/columns', asyncHandler(async (req, res) => {
   res.status(201).json(rows[0]);
 }));
 
-// ── Memoria ───────────────────────────────────────────────────────────────────
-
-router.get('/memoria/graph', asyncHandler(async (req, res) => {
-  const targetUrls = [];
-  if (process.env.MEMORIA_API_URL) {
-    targetUrls.push(process.env.MEMORIA_API_URL);
-  }
-  targetUrls.push('http://host.docker.internal:8765');
-  targetUrls.push('http://127.0.0.1:8765');
-
-  let lastError = null;
-  for (const base of targetUrls) {
-    try {
-      const cleanBase = base.replace(/\/$/, '');
-      const memoriaUrl = new URL(cleanBase.endsWith('/graph') ? cleanBase : `${cleanBase}/graph`);
-      if (req.query.category) memoriaUrl.searchParams.set('category', String(req.query.category));
-      if (req.query.type) memoriaUrl.searchParams.set('type', String(req.query.type));
-      if (req.query.query) memoriaUrl.searchParams.set('query', String(req.query.query));
-      if (req.query.start_date) memoriaUrl.searchParams.set('start_date', String(req.query.start_date));
-      if (req.query.end_date) memoriaUrl.searchParams.set('end_date', String(req.query.end_date));
-      if (req.query.min_weight) memoriaUrl.searchParams.set('min_weight', String(req.query.min_weight));
-      if (req.query.limit) memoriaUrl.searchParams.set('limit', String(req.query.limit));
-
-      const response = await fetch(memoriaUrl.toString(), { signal: AbortSignal.timeout(3000) });
-      if (response.ok) {
-        const data = await response.json();
-        return res.json(data);
-      }
-    } catch (err) {
-      lastError = err;
-    }
-  }
-
-  return res.json({
-    node_count: 0,
-    edge_count: 0,
-    categories: ['Entity', 'Facts', 'People', 'Projects', 'Daily'],
-    nodes: [],
-    edges: [],
-    error: `Memoria service unavailable: ${lastError?.message || 'Connection refused'}`
-  });
-}));
+router.use('/memoria', require('./memoria'));
+router.use('/users', require('./users'));
 
 module.exports = router;
 

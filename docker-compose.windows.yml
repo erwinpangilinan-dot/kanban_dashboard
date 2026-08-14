@@ -1,0 +1,50 @@
+# Windows / Docker Desktop override.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.windows.yml up -d --build
+#
+# Disables the Linux-only ollama-proxy (network_mode: host). On Docker Desktop,
+# containers already reach the host via host.docker.internal — point Ollama at
+# port 11434 directly when the email assistant is needed.
+#
+# Network equipment (BMC IPv6): the default Docker Desktop / WSL2 bridge often
+# has no IPv6 route to the LAN, so Redfish probes may show ENETUNREACH from the
+# API container even when the Windows host can ping the BMC. Fixes:
+#   - Prefer Linux/deploy hosts with working IPv6 into the container network, or
+#   - Enable WSL mirrored networking + Docker IPv6 if you must probe from Desktop.
+# Sheet sync still works without BMC reachability.
+
+services:
+  ollama-proxy:
+    profiles:
+      - linux-only
+
+  # Publish Postgres so a host-side network poller can probe BMC IPv6
+  # (Windows host has LAN IPv6; Docker Desktop bridge usually does not).
+  # Bound to loopback: the poller runs on this host, so there is no reason to
+  # offer the database to the rest of the LAN.
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  api:
+    environment:
+      # Default to host Ollama directly (no socat proxy on Windows)
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      # Shared Memoria on LAN (not on Windows host — host.docker.internal:8765 is refused)
+      MEMORIA_API_URL: ${MEMORIA_API_URL:-http://10.10.50.2:8765}
+      NETWORK_VDU_SHEET_ID: ${NETWORK_VDU_SHEET_ID:-1CpfPlE12oGDIxsJJ8HoeAMXevF7nDAgRTlDoyhoWjsk}
+      NETWORK_PROBE_INTERVAL_MS: ${NETWORK_PROBE_INTERVAL_MS:-45000}
+      NETWORK_SYNC_INTERVAL_MS: ${NETWORK_SYNC_INTERVAL_MS:-300000}
+      # Container poller cannot reach BMC IPv6 on Desktop; host poller writes snapshots.
+      NETWORK_SKIP_CONTAINER_POLLER: ${NETWORK_SKIP_CONTAINER_POLLER:-1}
+      # Reboot actions proxy to host agent (network-host-poller.js :38765)
+      NETWORK_HOST_AGENT_URL: ${NETWORK_HOST_AGENT_URL:-http://host.docker.internal:38765}
+      NETWORK_REBOOT_VIA_HOST: ${NETWORK_REBOOT_VIA_HOST:-1}
+      NETWORK_PRECHECK_VIA_HOST: ${NETWORK_PRECHECK_VIA_HOST:-1}
+      NETWORK_SUBCLOUD_MIDDLEWARE_VIA_HOST: ${NETWORK_SUBCLOUD_MIDDLEWARE_VIA_HOST:-1}
+      NETWORK_SUBCLOUD_MIDDLEWARE_URL: ${NETWORK_SUBCLOUD_MIDDLEWARE_URL:-https://middleware.faredge.vzwops.com/caas/subcloud/}
+      NETWORK_SUBCLOUD_MIDDLEWARE_ENABLED: ${NETWORK_SUBCLOUD_MIDDLEWARE_ENABLED:-1}
+      NETWORK_SUBCLOUD_MIDDLEWARE_DOMAIN: ${NETWORK_SUBCLOUD_MIDDLEWARE_DOMAIN:-USWIN}
+      NETWORK_KUBECONFIG_DIR: ${NETWORK_KUBECONFIG_DIR:-/app/kubeconfigs}
+      # Atlas creds: load from env_file only — do not interpolate NETWORK_ATLAS_PASSWORD here
+      # ($ in passwords breaks when passed as ${NETWORK_ATLAS_PASSWORD}).
+      NETWORK_ATLAS_VIA_HOST: ${NETWORK_ATLAS_VIA_HOST:-1}

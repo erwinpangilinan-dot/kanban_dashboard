@@ -14,6 +14,7 @@ interface HeaderProps {
   onAutoRefreshChange?: (enabled: boolean) => void;
   onExport?: (format: 'csv' | 'json') => void;
   exporting?: boolean;
+  readOnly?: boolean;
 }
 
 export function Header({
@@ -28,6 +29,7 @@ export function Header({
   onAutoRefreshChange,
   onExport,
   exporting = false,
+  readOnly = false,
 }: HeaderProps) {
   const title =
     view === 'overview'
@@ -35,16 +37,24 @@ export function Header({
       : view === 'workspace'
         ? 'Workspace'
         : view === 'memoria'
-          ? 'Memoria Graph View'
-          : (project?.name ?? 'Board');
+          ? 'Memoria'
+          : view === 'network'
+            ? 'Network'
+            : view === 'users'
+              ? 'Users'
+              : (project?.name ?? 'Board');
   const subtitle =
     view === 'overview'
       ? 'Mission status across all projects'
       : view === 'workspace'
         ? 'Email and calendar in one place'
         : view === 'memoria'
-          ? 'Interactive relational knowledge network visualizer'
-          : project?.description;
+          ? 'Knowledge graph and Method of Procedure ingest for agent RAG'
+          : view === 'network'
+            ? 'vDU inventory — BMC Redfish and Subcloud ping monitoring'
+            : view === 'users'
+              ? 'Accounts, access level, and which tabs each user can open'
+              : project?.description;
 
 
   return (
@@ -60,6 +70,14 @@ export function Header({
         {view === 'board' && (
           <span className="text-sm text-gray-500">
             {taskCount} {taskCount === 1 ? 'task' : 'tasks'}
+          </span>
+        )}
+        {readOnly && (
+          <span
+            title="Your account can view these tabs but cannot make changes."
+            className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-300"
+          >
+            Read only
           </span>
         )}
         {username && (

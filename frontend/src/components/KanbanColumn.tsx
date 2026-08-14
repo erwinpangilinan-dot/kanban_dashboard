@@ -10,11 +10,12 @@ import { TaskCard } from './TaskCard';
 
 interface KanbanColumnProps {
   column: Column;
+  canWrite?: boolean;
   onTaskClick: (task: Task) => void;
   onAddTask: (columnId: string, title: string) => Promise<void>;
 }
 
-export function KanbanColumn({ column, onTaskClick, onAddTask }: KanbanColumnProps) {
+export function KanbanColumn({ column, canWrite = true, onTaskClick, onAddTask }: KanbanColumnProps) {
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -55,15 +56,17 @@ export function KanbanColumn({ column, onTaskClick, onAddTask }: KanbanColumnPro
             {column.tasks.length}
           </span>
         </div>
-        <button
-          type="button"
-          onClick={() => { setAdding(true); setError(null); }}
-          onPointerDown={stopDrag}
-          className="rounded p-1 text-gray-500 transition-colors hover:bg-surface-overlay hover:text-gray-300"
-          aria-label={`Add task to ${column.name}`}
-        >
-          <Plus className="h-4 w-4" />
-        </button>
+        {canWrite && (
+          <button
+            type="button"
+            onClick={() => { setAdding(true); setError(null); }}
+            onPointerDown={stopDrag}
+            className="rounded p-1 text-gray-500 transition-colors hover:bg-surface-overlay hover:text-gray-300"
+            aria-label={`Add task to ${column.name}`}
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       <div

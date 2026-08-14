@@ -9,20 +9,37 @@ import { ProjectModal } from './components/ProjectModal';
 import { Sidebar } from './components/Sidebar';
 import { TaskModal } from './components/TaskModal';
 import { WorkspacePage } from './components/WorkspacePage';
-import { MemoriaGraphView } from './components/MemoriaGraphView';
+import { MemoriaPage } from './components/MemoriaPage';
+import { NetworkPage } from './components/NetworkPage';
+import { UsersPage } from './components/UsersPage';
 
 import { useAutoRefresh } from './hooks/useAutoRefresh';
 import { getAutoRefreshEnabled, setAutoRefreshEnabled } from './lib/autoRefresh';
 import { EMPTY_FILTERS, collectAssignees, filterColumns } from './lib/boardFilters';
 import { clearToken, getToken } from './lib/auth';
-import type { AppView, BoardData, Label, OverviewData, Project, Task, UpdateTaskInput } from './types';
+import type {
+  AppView,
+  BoardData,
+  CurrentUser,
+  Label,
+  OverviewData,
+  Project,
+  Task,
+  UpdateTaskInput,
+} from './types';
 
 type AuthState = 'loading' | 'login' | 'ready';
+
+const ALL_VIEWS: AppView[] = ['overview', 'board', 'workspace', 'memoria', 'network', 'users'];
+
+// Order the sidebar renders them in, so a user whose Overview tab is revoked
+// lands on their first granted tab rather than an empty screen.
+const VIEW_ORDER: AppView[] = ['overview', 'workspace', 'memoria', 'network', 'users', 'board'];
 
 export default function App() {
   const [authState, setAuthState] = useState<AuthState>('loading');
   const [authEnabled, setAuthEnabled] = useState(false);
-  const [username, setUsername] = useState<string | null>(null);
+  const [me, setMe] = useState<CurrentUser | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [view, setView] = useState<AppView>('overview');
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
@@ -36,13 +53,46 @@ export default function App() {
   const [boardFilters, setBoardFilters] = useState(EMPTY_FILTERS);
   const [exporting, setExporting] = useState(false);
   const [workspaceRefresh, setWorkspaceRefresh] = useState(0);
+  const [networkRefresh, setNetworkRefresh] = useState(0);
+  const [usersRefresh, setUsersRefresh] = useState(0);
+  const [requestedView, setRequestedView] = useState<AppView | null>(null);
+
+  // With auth disabled there is no account to read permissions from, so the
+  // local operator gets everything. The API applies the same rule.
+  const allowedViews = authEnabled ? (me?.views ?? []) : ALL_VIEWS;
+  const canWrite = authEnabled ? (me?.can_write ?? false) : true;
 
   useEffect(() => {
     setUnauthorizedHandler(() => {
       clearToken();
-      setUsername(null);
+      setMe(null);
       setAuthState('login');
     });
+  }, []);
+
+  // Deep-link from Google OAuth callback: /?view=workspace&oauth=ok|error
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const deepView = params.get('view');
+    const oauth = params.get('oauth');
+    // Applied once permissions are known, so a link cannot open a revoked tab.
+    if (deepView && (ALL_VIEWS as string[]).includes(deepView)) {
+      setRequestedView(deepView as AppView);
+    }
+    if (oauth) {
+      sessionStorage.setItem(
+        'mc_oauth_result',
+        JSON.stringify({ status: oauth, message: params.get('message') })
+      );
+      if (oauth === 'ok') setWorkspaceRefresh((n) => n + 1);
+    }
+    if (deepView || oauth) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('view');
+      url.searchParams.delete('oauth');
+      url.searchParams.delete('message');
+      window.history.replaceState({}, '', url.pathname + url.search);
+    }
   }, []);
 
   useEffect(() => {
@@ -59,8 +109,7 @@ export default function App() {
           return;
         }
         try {
-          const me = await api.getMe();
-          setUsername(me.username);
+          setMe(await api.getMe());
           setAuthState('ready');
         } catch {
           clearToken();
@@ -70,14 +119,32 @@ export default function App() {
       .catch(() => setAuthState('ready'));
   }, []);
 
+  // Keep the open tab within what the account is allowed to see. Runs on sign-in
+  // and again if an admin revokes a tab while the user is on it.
+  useEffect(() => {
+    if (authState !== 'ready' || allowedViews.length === 0) return;
+
+    if (requestedView) {
+      setRequestedView(null);
+      if (allowedViews.includes(requestedView)) {
+        setView(requestedView);
+        return;
+      }
+    }
+
+    if (!allowedViews.includes(view)) {
+      setView(VIEW_ORDER.find((candidate) => allowedViews.includes(candidate)) ?? 'overview');
+    }
+  }, [authState, allowedViews, requestedView, view]);
+
   function handleLogout() {
     clearToken();
-    setUsername(null);
+    setMe(null);
     setAuthState('login');
   }
 
-  function handleLoginSuccess(name: string) {
-    setUsername(name);
+  function handleLoginSuccess(user: CurrentUser) {
+    setMe(user);
     setAuthState('ready');
   }
 
@@ -133,35 +200,31 @@ export default function App() {
     if (enabled && activeProjectId) silentRefreshBoard();
   }
 
+  const canViewBoard = allowedViews.includes('board');
+
   useEffect(() => {
-    if (authState !== 'ready') return;
+    if (authState !== 'ready' || !canViewBoard) {
+      setLoading(false);
+      return;
+    }
     loadProjects().catch((err) => {
       setError(err instanceof Error ? err.message : 'Failed to load projects');
       setLoading(false);
     });
-  }, [loadProjects, authState]);
+  }, [loadProjects, authState, canViewBoard]);
 
   useEffect(() => {
     if (authState !== 'ready') return;
     if (view === 'overview') {
       loadOverview();
-    } else if (activeProjectId) {
+    } else if (view === 'board' && activeProjectId) {
       loadBoard(activeProjectId);
     }
   }, [view, activeProjectId, loadOverview, loadBoard, authState]);
 
-  function handleSelectOverview() {
-    setView('overview');
+  function handleSelectView(next: AppView) {
+    setView(next);
   }
-
-  function handleSelectWorkspace() {
-    setView('workspace');
-  }
-
-  function handleSelectMemoria() {
-    setView('memoria');
-  }
-
 
   function handleSelectProject(projectId: string) {
     setBoardFilters(EMPTY_FILTERS);
@@ -174,6 +237,10 @@ export default function App() {
       loadOverview();
     } else if (view === 'workspace') {
       setWorkspaceRefresh((n) => n + 1);
+    } else if (view === 'network') {
+      setNetworkRefresh((n) => n + 1);
+    } else if (view === 'users') {
+      setUsersRefresh((n) => n + 1);
     } else if (activeProjectId) {
       loadBoard(activeProjectId);
     }
@@ -310,9 +377,9 @@ export default function App() {
         projects={projects}
         view={view}
         activeProjectId={activeProjectId}
-        onSelectOverview={handleSelectOverview}
-        onSelectWorkspace={handleSelectWorkspace}
-        onSelectMemoria={handleSelectMemoria}
+        allowedViews={allowedViews}
+        canWrite={canWrite}
+        onSelectView={handleSelectView}
         onSelectProject={handleSelectProject}
         onCreateProject={() => setShowProjectModal(true)}
       />
@@ -324,8 +391,9 @@ export default function App() {
           taskCount={visibleTaskCount}
           onRefresh={handleRefresh}
           loading={loading}
-          username={authEnabled ? username : null}
+          username={authEnabled ? (me?.username ?? null) : null}
           onLogout={authEnabled ? handleLogout : undefined}
+          readOnly={authEnabled && !canWrite}
           autoRefresh={autoRefresh}
           onAutoRefreshChange={view === 'board' ? handleAutoRefreshChange : undefined}
           onExport={view === 'board' && activeProjectId ? handleExport : undefined}
@@ -354,7 +422,11 @@ export default function App() {
           ) : view === 'workspace' ? (
             <WorkspacePage refreshToken={workspaceRefresh} />
           ) : view === 'memoria' ? (
-            <MemoriaGraphView />
+            <MemoriaPage />
+          ) : view === 'network' ? (
+            <NetworkPage refreshToken={networkRefresh} canWrite={canWrite} />
+          ) : view === 'users' ? (
+            <UsersPage currentUsername={me?.username ?? null} refreshToken={usersRefresh} />
           ) : view === 'board' && boardData ? (
 
             <>
@@ -371,6 +443,7 @@ export default function App() {
               )}
               <KanbanBoard
                 columns={filteredColumns}
+                canWrite={canWrite}
                 onColumnsChange={(columns) => {
                   if (!boardFilters.search && !boardFilters.priority && !boardFilters.labelId && !boardFilters.assignee) {
                     setBoardData((prev) => (prev ? { ...prev, columns } : prev));
@@ -384,13 +457,15 @@ export default function App() {
           ) : (
             <div className="flex h-64 flex-col items-center justify-center text-gray-500">
               <p>No data available</p>
-              <button
-                type="button"
-                onClick={() => setShowProjectModal(true)}
-                className="mt-3 text-sm text-accent-hover hover:underline"
-              >
-                Create your first project
-              </button>
+              {canWrite && canViewBoard && (
+                <button
+                  type="button"
+                  onClick={() => setShowProjectModal(true)}
+                  className="mt-3 text-sm text-accent-hover hover:underline"
+                >
+                  Create your first project
+                </button>
+              )}
             </div>
           )}
         </main>
@@ -401,6 +476,7 @@ export default function App() {
           task={selectedTask}
           projectId={activeProjectId}
           projectLabels={boardData?.labels ?? []}
+          canWrite={canWrite}
           onClose={() => setSelectedTask(null)}
           onSave={handleSaveTask}
           onDelete={handleDeleteTask}

@@ -1,12 +1,24 @@
 {
   "mcpServers": {
     "mission-control": {
-      "command": "bash",
-      "args": ["mcp/run.sh"]
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "mcp/run.ps1"
+      ]
     },
     "google-workspace": {
-      "command": "bash",
-      "args": ["mcp/run-google-workspace.sh"]
+      "command": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "mcp/run-google-workspace.ps1"
+      ]
     }
   }
 }

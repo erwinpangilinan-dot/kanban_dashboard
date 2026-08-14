@@ -1,0 +1,12 @@
+---
+description: Recall and follow Memoria MOPs before procedure-bound work
+alwaysApply: true
+---
+
+# MOP / procedure RAG
+
+Before deploy, network/BMC, change-window, or any task the user frames as a procedure:
+
+1. Use Memoria MCP (`http://10.10.50.2:8765`) — `memoria_recall` with keywords + `MOP`.
+2. Prefer `[MOP] mop_id=...` hits; list steps before acting.
+3. Follow `mop-compliance` skill. Draft skills via `mop-to-skill` only with user approval to install.

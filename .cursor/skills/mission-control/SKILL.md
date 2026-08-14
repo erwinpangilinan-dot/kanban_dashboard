@@ -1,111 +1,114 @@
 ---
 name: mission-control
 description: >-
-  Coordinate project status via the Mission Control Dashboard MCP server.
-  Queries overview metrics, Kanban boards, tasks, and activity; creates or moves
-  tasks; generates standup reports. Use when the user asks about project status,
-  sprint progress, standups, task coordination, Mission Control, kanban board
-  updates, overdue tasks, or what is in progress across projects.
+  Track and update projects/tasks on the production Mission Control Dashboard
+  (http://10.10.50.6). Use for project status, standups, Kanban updates, sprint
+  progress, creating/moving/completing tasks, Network Equipment board work, or
+  whenever shipping features that should be reflected on the dashboard. Production
+  is the source of truth — not local Docker.
 ---
 
-# Mission Control Coordination
+# Mission Control (production source of truth)
 
-Use the **mission-control** MCP server to read and update the team's Mission Control Dashboard.
+Always use **production** Mission Control for project/task tracking:
 
-## Prerequisites
+| | |
+|--|--|
+| **UI** | http://10.10.50.6 |
+| **API** | http://10.10.50.6/api |
+| **Auth** | `Authorization: Bearer` with `AUTH_API_TOKEN` or `MISSION_CONTROL_API_TOKEN` from repo `.env` |
 
-1. MCP server is configured in `.cursor/mcp.json` (stdio → `mcp/run.sh`).
-2. **Production is the source of truth** for status, standups, and task mutations.
-   Set in `.env`: `MISSION_CONTROL_API_URL=http://10.10.50.6/api`
-3. Local Docker (`http://localhost`) is for development only — separate database, not synced with production.
+Local Docker (`http://localhost`) is a **separate DB** — do **not** use it for status or task mutations unless the user explicitly asks for local-only.
 
-Always call `health_check` first if unsure the API is reachable.
+## When to update the board (mandatory)
 
-## Domain Rules
+Update production for **every** feature, enhancement, bugfix, or milestone — do **not** wait for the user to ask.
+
+| Event | Board action |
+|-------|----------------|
+| Start work | Create or move task → **In Progress** |
+| Ship / finish | Move → **Done** (or create Done task with what shipped) |
+| New idea / follow-up | Add **Backlog** or **To Do** |
+| Status / standup ask | Read overview/board and report |
+
+Pick the correct project (e.g. **Network Equipment**, **Mission Control**). If none fits, `create_project` then add tasks.
+
+After mutations, briefly confirm: project + task title + column. Link: http://10.10.50.6.
+
+## How to call the API
+
+### Prefer MCP
+
+Use the **mission-control** MCP tools when the server is healthy (`health_check` first if unsure).
+
+### Fallback: REST (when MCP is error / unavailable)
+
+Load token from the Dashboard repo `.env` (never print secrets). Then:
+
+```text
+GET/POST/PUT/PATCH/DELETE  http://10.10.50.6/api/...
+Header: Authorization: Bearer <AUTH_API_TOKEN or MISSION_CONTROL_API_TOKEN>
+```
+
+Useful routes:
+
+| Action | Method / path |
+|--------|----------------|
+| List projects | `GET /projects` |
+| Board | `GET /projects/:id/board` |
+| Create project | `POST /projects` `{ name, description?, color? }` |
+| Create task | `POST /columns/:columnId/tasks` `{ title, description?, priority?, ... }` |
+| Update task | `PUT /tasks/:id` |
+| Move task | `PATCH /tasks/:id/move` `{ column_id, position }` |
+| Overview | `GET /overview` |
+| Ops | `GET /ops/status` |
+
+Columns (default board): `Backlog` → `To Do` → `In Progress` → `Review` → `Done`.
+
+Resolve column/task IDs via `list_projects` / `get_board` (or REST equivalents) — never guess UUIDs.
+
+Optional helper (idempotent by title):
+
+```bash
+node backend/scripts/seed-network-board.js
+```
+
+Uses production by default from `.env` (`MISSION_CONTROL_API_URL`).
+
+## MCP tool map
+
+| Tool | Use |
+|------|-----|
+| `health_check` | Connectivity |
+| `get_status_report` / `get_overview` | Standups / metrics |
+| `list_projects` / `get_board` | IDs and columns |
+| `create_project` / `create_task` | New work |
+| `move_task` / `complete_task` | Workflow |
+| `update_task` / `delete_task` | Edit / remove |
+
+## Domain terms
 
 | Term | Meaning |
 |------|---------|
-| **Backlog** | Columns: Backlog + To Do |
-| **In Progress** | Column: In Progress |
-| **Completed** | Columns: Review + Done |
-| **Overdue** | Past due date, not in Review/Done |
+| Backlog | Columns Backlog + To Do |
+| In Progress | Column In Progress |
+| Completed | Review + Done |
+| Overdue | Past due date, not Review/Done |
 
-Default columns per project: `Backlog` → `To Do` → `In Progress` → `Review` → `Done`.
+## Auth notes
 
-## Coordination Workflows
+- Production has auth enabled (`JWT_SECRET` set).
+- MCP/scripts need `AUTH_API_TOKEN` (same value as on the server); `MISSION_CONTROL_API_TOKEN` defaults to it in `mcp/run.ps1` / `mcp/run.sh`.
+- UI login JWT is separate; prefer the API token for agents.
+- If API returns 401: fix `.env` token to match production — do not fall back to localhost for tracking.
 
-### Status check / standup
+## Do not
 
-```
-1. health_check
-2. get_status_report          ← markdown summary for humans
-   OR get_overview             ← raw JSON for analysis
-3. Optionally get_board per project for detail
-```
-
-Use prompt `standup_summary` for a pre-filled standup generation request.
-
-### Create work item
-
-```
-1. list_projects              ← get project_id if unknown
-2. create_task
-   - project_id
-   - column_name (e.g. "Backlog" or "To Do")
-   - title, priority, assignee, due_date
-```
-
-### Mark work complete
-
-```
-complete_task(project_id, task_id)
-```
-
-Or `move_task` to `Review` or `Done`.
-
-### Risk / health review
-
-```
-1. get_overview
-2. Prompt: coordination_check
-   - optional project_name to focus
-```
-
-Flag: `overdue > 0`, high `in_progress` with low `completed_this_week`, projects at 0% progress.
-
-## Tool Quick Reference
-
-| Tool | When to use |
-|------|-------------|
-| `health_check` | Verify API before other calls |
-| `get_status_report` | Standups, status updates to user |
-| `get_overview` | Metrics + widgets + activity (JSON) |
-| `list_projects` | Find project IDs and names |
-| `get_board` | Full Kanban for one project |
-| `create_task` | Add task by column name |
-| `move_task` | Change column / workflow stage |
-| `complete_task` | Shortcut → Done |
-| `update_task` | Edit title, priority, assignee, due date |
-| `delete_task` | Remove task permanently |
-| `create_project` | New project + default board |
-
-## Response Guidelines
-
-When reporting status to the user:
-
-1. Lead with **overdue** and **due this week** if any exist.
-2. Summarize each **project widget** (name, % complete, active, overdue).
-3. List **in progress** items when asked what's being worked on.
-4. After mutations, confirm what changed and suggest refreshing the dashboard.
-
-## Do Not
-
-- Guess `project_id` or `task_id` — fetch via `list_projects` / `get_board` first.
-- Use column UUIDs with the user — always refer to column **names**.
-- Skip `health_check` when the user reports connection errors.
+- Treat local Docker as the tracking source of truth
+- Skip board updates after shipping tracked work
+- Print tokens or passwords from `.env`
+- Guess project/task UUIDs
 
 ## Additional Resources
 
 - MCP tool schemas: [reference.md](reference.md)
-- **Status dashboard (production):** http://10.10.50.6
-- **Local dev UI:** http://localhost (Docker) or http://localhost:5173 (Vite)

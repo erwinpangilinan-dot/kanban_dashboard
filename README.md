@@ -40,6 +40,44 @@ docker compose logs -f    # view logs
 docker compose down       # stop everything
 ```
 
+### Windows (Docker Desktop)
+
+Ubuntu production and Linux Docker use the base compose file (including the host-network `ollama-proxy`). On Windows, use Docker Desktop (WSL2 backend) and the Windows override — it skips that Linux-only proxy and talks to host Ollama on port **11434** when needed.
+
+1. Install [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/) with the **WSL2** backend (or `winget install --id Docker.DockerDesktop -e`).
+2. Start Docker Desktop and wait until the engine is running.
+3. From the repo root in PowerShell:
+
+```powershell
+.\scripts\setup-windows.ps1   # creates .env from .env.example if missing
+.\scripts\start-windows.ps1   # docker compose up -d --build + host poller supervisor
+```
+
+Open **http://localhost**.
+
+`start-windows.ps1` also starts the **network host poller** (BMC IPv6 probe + reboot agent on `:38765`) under a supervisor that auto-restarts on crash, and registers a per-user Scheduled Task (`MissionControlNetworkHostPoller`) so the poller comes back at logon / every 10 minutes when Docker Postgres is up. `stop-windows.ps1` stops both Docker and the poller.
+
+The agent can reboot hardware and launch Atlas jobs, and it has to bind a LAN-visible interface because `host.docker.internal` does not reach loopback. It therefore **requires a shared secret** and refuses to start without one:
+
+```bash
+NETWORK_HOST_AGENT_TOKEN=<64-hex-chars>   # setup-windows.ps1 generates this
+```
+
+Every request except `GET /health` must carry `x-mission-control-agent-token`, and the API container needs the same value. Reboot and BMC-reset calls must also include `confirm_cluster_id` matching the target device. Set `NETWORK_HOST_AGENT_BIND=127.0.0.1` when the API runs directly on the host rather than in Docker.
+
+```powershell
+.\scripts\logs-windows.ps1                 # Docker logs (poller: logs\network-host-poller.log)
+.\scripts\stop-windows.ps1                 # stop Docker + host poller
+.\scripts\start-network-host-poller.ps1    # start/restart poller only
+.\scripts\stop-network-host-poller.ps1     # stop poller only
+```
+
+Equivalent npm aliases: `npm run setup:windows`, `npm run docker:up:windows`, `npm run docker:down:windows`, `npm run docker:logs:windows`.
+
+**Cursor MCP on Windows:** copy [`.cursor/mcp.windows.json`](.cursor/mcp.windows.json) over `.cursor/mcp.json` (or merge the `powershell` launchers), install MCP deps with `npm run mcp:install` (requires Node.js), then restart Cursor. Bash launchers remain the default for Linux.
+
+Local Windows Docker and production (`http://10.10.50.6`) still use **separate databases**. Ansible/Ubuntu deploy remains the production path.
+
 ### Production vs local
 
 | | Production | Local Docker |
@@ -83,11 +121,15 @@ npm run build && npm start
 ```
 kanban_dashboard/
 ├── backend/              # Express API + Dockerfile
+│   └── tests/            # Unit tests (npm test --prefix backend)
 ├── frontend/             # React/Vite UI + nginx Dockerfile
 ├── database/migrations/  # PostgreSQL schema (V1, V2, …)
+├── secrets/kubeconfigs/  # <cluster_name>.kubeconfig files (gitignored)
 ├── docker-compose.yml    # Full stack: postgres + api + web
 └── docker-compose.dev.yml # Dev override (expose Postgres port)
 ```
+
+Kubeconfigs embed client certificates and keys, so they live in the gitignored `secrets/kubeconfigs/` directory (override with `NETWORK_KUBECONFIG_DIR`). Only that directory is mounted into the API container.
 
 ---
 
@@ -230,6 +272,8 @@ Export includes column, title, description, priority, assignee, due date, labels
 
 Auth is **off by default** (no `JWT_SECRET`). CI and local dev work without credentials.
 
+With `NODE_ENV=production` the API **refuses to start** unless `JWT_SECRET` is set, because an unset secret would otherwise serve every `/api` route unauthenticated. To deliberately run an open API in production, set `ALLOW_UNAUTHENTICATED=1`.
+
 To enable, set in `.env`:
 
 ```bash
@@ -242,6 +286,30 @@ AUTH_API_TOKEN=token-for-mcp-and-scripts
 - **Dashboard:** sign-in page appears when auth is enabled
 - **MCP / scripts:** send `Authorization: Bearer $AUTH_API_TOKEN`
 - **Public routes:** `/api/health`, `/api/auth/status`, `/api/auth/login`, `/api/webhooks/github`
+
+### Users, access levels, and tab permissions
+
+Accounts live in the database. `AUTH_USERNAME` / `AUTH_PASSWORD` seed the **first admin** on startup and only while the `users` table is empty — after that, changing them in `.env` has no effect and accounts are managed from the **Users** tab in the dashboard.
+
+Each account gets one access level plus the list of tabs it can open:
+
+| Access level | Can change data | Tabs |
+|--------------|-----------------|------|
+| **Administrator** | Yes | All tabs, plus user management |
+| **Full access** | Yes | Only the tabs the admin ticks |
+| **Read only** | No — every `POST`/`PUT`/`PATCH`/`DELETE` is refused | Only the tabs the admin ticks |
+
+The API enforces the same rules the sidebar shows: a request to a tab the account cannot see returns `403`, so hidden tabs are not reachable by calling the API directly. Permissions are read from the database on every request, so revoking a tab or disabling an account takes effect immediately rather than when the token expires. Changing a password signs that user out of their other sessions.
+
+`AUTH_API_TOKEN` is not a dashboard account — it keeps full access for MCP servers and scripts.
+
+**Locked out of every admin account:**
+
+```bash
+npm run user:reset-password --prefix backend -- <username> <password>
+```
+
+That resets an existing user's password (and re-enables them), or creates the account as an admin if it does not exist.
 
 ### Production ops status
 
@@ -306,7 +374,7 @@ GitHub Actions runs on every push and pull request to `main`:
 
 | Job | Checks |
 |-----|--------|
-| **test-and-build** | Postgres migrations, API smoke test, ops verify, frontend typecheck/build, MCP verify |
+| **test-and-build** | Unit tests, Postgres migrations, API smoke test, ops verify, frontend typecheck/build, MCP verify |
 | **docker** | `docker compose build` for api + web images |
 | **deploy** | After CI passes on `main`, deploys to production via Ansible (manual dispatch also available) |
 
@@ -349,7 +417,7 @@ GitHub Actions CD: create a **production** environment and add secrets:
 | `DEPLOY_SSH_KEY` | SSH key (manual Ansible only) |
 | `MC_POSTGRES_PASSWORD` | Database password |
 | `MC_JWT_SECRET` | Auth signing key |
-| `MC_AUTH_PASSWORD` | Dashboard login password |
+| `MC_AUTH_PASSWORD` | Password for the seeded first admin account |
 | `MC_AUTH_API_TOKEN` | MCP / API bearer token |
 | `MC_GITHUB_TOKEN` | GitHub PAT for issue sync (required when `mc_github_default_repo` is set) |
 | `MC_GITHUB_WEBHOOK_SECRET` | GitHub webhook HMAC secret |
@@ -371,6 +439,70 @@ RUNNER_TOKEN=<paste-token> ./scripts/setup-github-runner.sh
 The Deploy workflow uses `runs-on: [self-hosted, mission-control]` and Ansible `inventory/local.yml` (no SSH hop).
 
 Verify in GitHub: **Settings → Actions → Runners** — should show `mission-control` online.
+
+---
+
+## Public hostname via Cloudflare Tunnel
+
+Puts the dashboard on a real domain without opening an inbound firewall port or
+exposing your home IP. `cloudflared` dials out to Cloudflare and traffic returns
+through that existing connection.
+
+```
+visitor → Cloudflare edge (TLS + Access) → tunnel → cloudflared → web:8080 → api:3001
+```
+
+nginx listens twice. Port **80** is published for LAN and localhost. Port
+**8080** is reachable only from the Docker network, so cloudflared is the only
+thing that can talk to it — which is what makes it safe for that listener to
+trust Cloudflare's `CF-Connecting-IP` header and pass the real visitor address
+to the API. Send the tunnel to port 80 instead and every remote visitor shares
+one address, so one attacker would rate-limit everybody.
+
+### Requirements
+
+- A domain using Cloudflare nameservers (transfer of DNS only, not the registrar)
+- Cloudflare Zero Trust enabled on the account (the free tier covers this)
+- Outbound HTTPS from this machine — nothing inbound
+- The machine stays on; when it sleeps, the site is down
+
+### Steps
+
+1. **Create the tunnel.** Zero Trust → Networks → Tunnels → Create → select
+   Docker. Copy the token and put it in `.env` as `CLOUDFLARE_TUNNEL_TOKEN`.
+   The token alone is enough to run the tunnel, so treat it as a credential.
+2. **Add the public hostname** on the tunnel: pick the hostname, set the service
+   to `HTTP` and `web:8080`.
+3. **Point the app at the new URL.** Set `MISSION_CONTROL_PUBLIC_URL` to the
+   `https://` hostname, and add `{that URL}/api/workspace/oauth/callback` to the
+   Google Cloud Console OAuth client, or Workspace re-authentication breaks.
+4. **Put Access in front of it** (see below) before the hostname resolves.
+5. **Start it:**
+
+```bash
+docker compose --profile cloudflare -f docker-compose.yml -f docker-compose.windows.yml up -d
+```
+
+### Access is not optional here
+
+The dashboard authenticates against one static username and password. Failed
+logins are rate limited, but that is not a substitute for real authentication on
+a public host. In Zero Trust → Access → Applications, add a self-hosted
+application covering the hostname with a policy allowing only your email
+addresses. Unauthenticated traffic then never reaches this machine.
+
+One caveat: an Access policy that covers the whole hostname will also block
+non-browser callers. If you need GitHub webhooks or external MCP access, either
+bypass `/api/webhooks` in the policy or issue a service token for those paths.
+
+### Known limits
+
+- Cloudflare's proxy times out around 100 seconds. Long Atlas operations already
+  run in the background with polling, so this should not bite, but any new
+  synchronous long request will surface as a 524.
+- `TRUST_PROXY_HOPS` stays at `1`. nginx resolves the real visitor and forwards
+  exactly one address, so the API still sees a single hop.
+- Do not route Postgres through the tunnel. It is bound to localhost on purpose.
 
 ---
 
@@ -402,7 +534,8 @@ npm install --prefix mcp
 # 3. Restart Cursor to load .cursor/mcp.json
 ```
 
-MCP config: `.cursor/mcp.json`  
+MCP config: `.cursor/mcp.json` (Linux/macOS bash launchers)  
+Windows MCP config: `.cursor/mcp.windows.json` (PowerShell launchers — copy over `mcp.json` on Windows)  
 Skill: `.cursor/skills/mission-control/SKILL.md`
 
 ### MCP Tools
@@ -433,8 +566,8 @@ See `.env.example` for all options. Key variables:
 |----------|-------------|
 | `DATABASE_URL` | PostgreSQL connection string |
 | `JWT_SECRET` | Enable API auth when set (HS256 JWT) |
-| `AUTH_USERNAME` / `AUTH_PASSWORD` | Dashboard login credentials |
-| `AUTH_API_TOKEN` | Static bearer token for MCP and automation |
+| `AUTH_USERNAME` / `AUTH_PASSWORD` | Seed the first admin account; later users are managed in the Users tab |
+| `AUTH_API_TOKEN` | Static bearer token for MCP and automation (full access) |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | Telegram push notifications (Sprint 2) |
 | `GOOGLE_*` / `EMAIL_*` | Gmail API or SMTP daily digest (Sprint 2) |
 | `GITHUB_TOKEN` | GitHub API token (Sprint 3) |
