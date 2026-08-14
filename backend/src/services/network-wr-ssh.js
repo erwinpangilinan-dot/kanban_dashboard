@@ -1,9 +1,14 @@
 const { execFile } = require('child_process');
 const { promisify } = require('util');
 const fs = require('fs');
-const { Client } = require('ssh2');
 
 const execFileAsync = promisify(execFile);
+
+/** Lazy-load so a native ssh2/cpu-features SIGILL does not crash API boot. */
+function createSsh2Client() {
+  const { Client } = require('ssh2');
+  return new Client();
+}
 
 function normalizeSshHost(host) {
   const trimmed = String(host || '').trim();
@@ -88,7 +93,7 @@ async function execSshRemote(host, user, password, keyPath, remoteCommand) {
 
 function execSshViaSsh2(host, user, password, remoteCommand) {
   return new Promise((resolve, reject) => {
-    const conn = new Client();
+    const conn = createSsh2Client();
     let stdout = '';
     let stderr = '';
     const timer = setTimeout(() => {
