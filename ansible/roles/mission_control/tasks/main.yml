@@ -67,6 +67,16 @@
     group: "{{ ansible_user }}"
     mode: "0755"
 
+# Prior root/sudo edits (or mixed owners) leave files deploy cannot overwrite;
+# git force-checkout then fails with Permission denied under .cursor/rules, etc.
+- name: Ensure install tree is owned by deploy user
+  ansible.builtin.file:
+    path: "{{ mc_install_dir }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    recurse: true
+
 - name: Clone or update application repository
   ansible.builtin.git:
     repo: "{{ mc_repo_url }}"
