@@ -17,12 +17,22 @@ function resolveMigrationsDir() {
   throw new Error('Migrations directory not found.');
 }
 
-async function migrate() {
-  const migrationsDir = resolveMigrationsDir();
-  const files = fs
+/** Numeric version from `V12__foo.sql` so V8 runs before V10 (string sort does not). */
+function migrationVersion(filename) {
+  const match = /^V(\d+)__/i.exec(filename);
+  return match ? Number(match[1]) : Number.POSITIVE_INFINITY;
+}
+
+function listMigrationFiles(migrationsDir) {
+  return fs
     .readdirSync(migrationsDir)
     .filter((f) => f.startsWith('V') && f.endsWith('.sql'))
-    .sort();
+    .sort((a, b) => migrationVersion(a) - migrationVersion(b) || a.localeCompare(b));
+}
+
+async function migrate() {
+  const migrationsDir = resolveMigrationsDir();
+  const files = listMigrationFiles(migrationsDir);
 
   for (const file of files) {
     const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
@@ -31,4 +41,4 @@ async function migrate() {
   }
 }
 
-module.exports = { migrate };
+module.exports = { migrate, migrationVersion, listMigrationFiles };

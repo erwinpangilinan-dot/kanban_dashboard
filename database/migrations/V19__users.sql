@@ -2,9 +2,7 @@
 -- Replaces the single AUTH_USERNAME/AUTH_PASSWORD identity; those env vars now
 -- only seed the first admin (see backend/src/services/users.js).
 
--- The migration runner sorts filenames as strings, so this file runs before V1
--- where the extension is otherwise created. Declared here so a fresh database
--- does not depend on that ordering.
+-- Idempotent; also created in V1. Safe if this file is applied out of order.
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TABLE IF NOT EXISTS users (
