@@ -4,12 +4,6 @@ const fs = require('fs');
 
 const execFileAsync = promisify(execFile);
 
-/** Lazy-load so a native ssh2/cpu-features SIGILL does not crash API boot. */
-function createSsh2Client() {
-  const { Client } = require('ssh2');
-  return new Client();
-}
-
 function normalizeSshHost(host) {
   const trimmed = String(host || '').trim();
   if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
@@ -80,8 +74,21 @@ async function execSshRemote(host, user, password, keyPath, remoteCommand) {
     return stdout + (stderr ? `\n${stderr}` : '');
   }
 
+  if (password && (await commandExists('sshpass'))) {
+    const { stdout, stderr } = await execFileAsync(
+      'sshpass',
+      ['-p', password, 'ssh', ...sshCommonOpts(), target, remoteCommand],
+      { maxBuffer: 8 * 1024 * 1024, timeout: 120_000 }
+    );
+    return stdout + (stderr ? `\n${stderr}` : '');
+  }
+
   if (password) {
-    return execSshViaSsh2(host, user, password, remoteCommand);
+    const err = new Error(
+      'Password WR SSH needs sshpass (Linux) or plink (Windows). Install sshpass in the API image, or use a key via NETWORK_WR_SSH_KEY_PATH.'
+    );
+    err.status = 400;
+    throw err;
   }
 
   const err = new Error(
@@ -89,58 +96,6 @@ async function execSshRemote(host, user, password, keyPath, remoteCommand) {
   );
   err.status = 400;
   throw err;
-}
-
-function execSshViaSsh2(host, user, password, remoteCommand) {
-  return new Promise((resolve, reject) => {
-    const conn = createSsh2Client();
-    let stdout = '';
-    let stderr = '';
-    const timer = setTimeout(() => {
-      conn.end();
-      reject(new Error('SSH connection timed out after 120s'));
-    }, 120_000);
-
-    conn.on('ready', () => {
-      conn.exec(remoteCommand, { pty: true, term: 'xterm' }, (err, stream) => {
-        if (err) {
-          clearTimeout(timer);
-          conn.end();
-          reject(err);
-          return;
-        }
-        stream.on('close', (code) => {
-          clearTimeout(timer);
-          conn.end();
-          if (code !== 0 && !stdout.trim()) {
-            reject(new Error(stderr.trim() || `SSH remote command exited ${code}`));
-            return;
-          }
-          resolve(stdout + (stderr ? `\n${stderr}` : ''));
-        });
-        stream.on('data', (chunk) => {
-          stdout += chunk.toString();
-        });
-        stream.stderr.on('data', (chunk) => {
-          stderr += chunk.toString();
-        });
-      });
-    });
-
-    conn.on('error', (err) => {
-      clearTimeout(timer);
-      reject(err);
-    });
-
-    conn.connect({
-      host: normalizeSshHost(host),
-      port: Number(process.env.NETWORK_WR_SSH_PORT) || 22,
-      username: user,
-      password,
-      readyTimeout: 30_000,
-      tryKeyboard: true,
-    });
-  });
 }
 
 function extractSection(output, name) {

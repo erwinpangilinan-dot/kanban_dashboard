@@ -137,7 +137,18 @@
   changed_when: mc_compose_down.rc == 0
   failed_when: false
 
-- name: Build and start Mission Control stack
+- name: Rebuild API image without cache
+  ansible.builtin.command:
+    cmd: docker compose -f docker-compose.yml -f docker-compose.prod.yml build --no-cache api
+    chdir: "{{ mc_install_dir }}"
+  register: mc_api_build
+  changed_when: true
+
+- name: Show API image build output
+  ansible.builtin.debug:
+    var: mc_api_build.stdout_lines[-80:]
+
+- name: Build remaining images and start Mission Control stack
   ansible.builtin.command:
     cmd: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --remove-orphans
     chdir: "{{ mc_install_dir }}"
@@ -152,7 +163,7 @@
         status_code: 200
         return_content: true
       register: mc_health
-      retries: 18
+      retries: 24
       delay: 5
       until: mc_health.status == 200
   rescue:
@@ -165,8 +176,8 @@
       failed_when: false
 
     - name: Collect API container logs after health failure
-      ansible.builtin.command:
-        cmd: docker compose -f docker-compose.yml -f docker-compose.prod.yml logs --tail 200 api
+      ansible.builtin.shell:
+        cmd: docker logs mission_control_api --tail 200 2>&1 || true
         chdir: "{{ mc_install_dir }}"
       register: mc_api_logs
       changed_when: false

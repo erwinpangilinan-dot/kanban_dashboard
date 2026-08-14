@@ -117,7 +117,10 @@ router.post('/projects', asyncHandler(async (req, res) => {
 router.use(require('./overview'));
 router.use('/ops', require('./ops'));
 router.use('/workspace', require('./workspace'));
-router.use('/network', require('./network'));
+router.use('/network', (req, res, next) => {
+  // Lazy-load so optional native deps in Network services cannot crash API boot.
+  require('./network')(req, res, next);
+});
 
 router.get('/github/status', asyncHandler(async (_req, res) => {
   res.json({
