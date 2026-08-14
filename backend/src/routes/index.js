@@ -483,7 +483,10 @@ router.post('/boards/:boardId/columns', asyncHandler(async (req, res) => {
   res.status(201).json(rows[0]);
 }));
 
-router.use('/memoria', require('./memoria'));
+router.use('/memoria', (req, res, next) => {
+  // Lazy-load: mop-extract pulls mammoth/pdf-parse which SIGILL on some hosts.
+  require('./memoria')(req, res, next);
+});
 router.use('/users', require('./users'));
 
 module.exports = router;

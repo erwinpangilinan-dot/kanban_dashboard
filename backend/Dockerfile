@@ -14,6 +14,9 @@ RUN apk add --no-cache iputils curl ipmitool openssh-client sshpass \
 COPY backend/src ./src
 COPY database ./database
 
+# Fail the image build if boot-time requires still SIGILL/crash.
+RUN node -e "require('./src/routes'); console.log('routes-ok')"
+
 ENV NODE_ENV=production
 ENV MIGRATIONS_DIR=/app/database/migrations
 ENV PORT=3001

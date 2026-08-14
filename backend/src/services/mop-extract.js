@@ -1,7 +1,4 @@
 const path = require('path');
-const mammoth = require('mammoth');
-const WordExtractor = require('word-extractor');
-const { PDFParse } = require('pdf-parse');
 
 const MAX_BYTES = 15 * 1024 * 1024;
 
@@ -54,6 +51,7 @@ function toMarkdownish(text, titleHint) {
 }
 
 async function extractPdf(buffer) {
+  const { PDFParse } = require('pdf-parse');
   const parser = new PDFParse({ data: buffer });
   try {
     const result = await parser.getText();
@@ -68,11 +66,13 @@ async function extractPdf(buffer) {
 }
 
 async function extractDocx(buffer) {
+  const mammoth = require('mammoth');
   const result = await mammoth.extractRawText({ buffer });
   return normalizeWhitespace(result.value || '');
 }
 
 async function extractDoc(buffer) {
+  const WordExtractor = require('word-extractor');
   const extractor = new WordExtractor();
   const doc = await extractor.extract(buffer);
   const parts = [doc.getBody(), doc.getHeaders(), doc.getFooters()].filter(Boolean);
