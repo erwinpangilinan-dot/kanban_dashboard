@@ -145,14 +145,46 @@
   changed_when: true
 
 - name: Wait for API health check
-  ansible.builtin.uri:
-    url: "http://127.0.0.1:{{ mc_app_port }}/api/health"
-    status_code: 200
-    return_content: true
-  register: mc_health
-  retries: 18
-  delay: 5
-  until: mc_health.status == 200
+  block:
+    - name: Poll API health endpoint
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ mc_app_port }}/api/health"
+        status_code: 200
+        return_content: true
+      register: mc_health
+      retries: 18
+      delay: 5
+      until: mc_health.status == 200
+  rescue:
+    - name: Collect compose status after health failure
+      ansible.builtin.command:
+        cmd: docker compose -f docker-compose.yml -f docker-compose.prod.yml ps -a
+        chdir: "{{ mc_install_dir }}"
+      register: mc_compose_ps
+      changed_when: false
+      failed_when: false
+
+    - name: Collect API container logs after health failure
+      ansible.builtin.command:
+        cmd: docker compose -f docker-compose.yml -f docker-compose.prod.yml logs --tail 200 api
+        chdir: "{{ mc_install_dir }}"
+      register: mc_api_logs
+      changed_when: false
+      failed_when: false
+
+    - name: Show compose status
+      ansible.builtin.debug:
+        var: mc_compose_ps.stdout_lines
+
+    - name: Show API logs
+      ansible.builtin.debug:
+        var: mc_api_logs.stdout_lines
+
+    - name: Fail deploy with health context
+      ansible.builtin.fail:
+        msg: >-
+          API health check failed after compose up.
+          See compose ps / api logs above.
 
 - name: Check GitHub integration status
   ansible.builtin.command:
